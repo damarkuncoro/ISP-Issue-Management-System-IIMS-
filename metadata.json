@@ -1,0 +1,5 @@
+{
+  "name": "ISP Issue Management System (IIMS)",
+  "description": "A comprehensive issue management dashboard tailored for Internet Service Providers to track network, device, and customer incidents with AI-assisted diagnostics.",
+  "requestFramePermissions": []
+}
