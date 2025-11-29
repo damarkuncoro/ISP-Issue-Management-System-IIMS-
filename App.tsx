@@ -254,6 +254,11 @@ const App: React.FC = () => {
       setSelectedCustomer(customer);
       setCurrentView(View.DETAIL_CUSTOMER); 
   };
+  
+  const handleNavigateToCustomerAdd = () => {
+      setCurrentView(View.CUSTOMERS);
+      // Ideally trigger modal open, but simple navigation for now
+  }
 
   const handleAddCustomer = (customerData: any) => {
       const newId = `CID-25${Math.floor(Math.random() * 9000) + 1000}`;
@@ -514,12 +519,15 @@ const App: React.FC = () => {
                     tickets={tickets} 
                     customers={customers}
                     devices={devices}
+                    invoices={invoices}
+                    servicePlans={servicePlans}
                     userRole={currentUserRole}
                     onCreateTicket={handleCreateTicket}
                     onNavigateToTicket={handleTicketSelect}
                     onViewAllTickets={() => setCurrentView(View.TICKETS)}
                     onNavigateToCustomer={handleDashboardCustomerSelect}
                     onValidateDevice={handleDashboardValidateDevice}
+                    onAddCustomer={handleNavigateToCustomerAdd}
                 />
               )}
               {currentView === View.TICKETS && (
