@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Device, DeviceStatus, UserRole, Customer } from '../types';
-import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User, Network, Eye } from 'lucide-react';
+import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User, Network, Eye, List, GitGraph } from 'lucide-react';
 import AddDeviceModal from './AddDeviceModal';
+import NetworkTopologyTree from './NetworkTopologyTree';
 
 interface DeviceInventoryProps {
   devices: Device[];
@@ -19,10 +20,13 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
   const [filterText, setFilterText] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
+  const [viewMode, setViewMode] = useState<'LIST' | 'TREE'>('LIST');
 
   useEffect(() => {
     if (preSetFilter) {
         setFilterText(preSetFilter);
+        // If filter is active, list view might be better to find the specific item
+        // But if user wants to see where it is in tree, Tree view is cool too. Keeping List as default for search.
     }
   }, [preSetFilter]);
 
@@ -104,156 +108,184 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
             <h2 className="text-2xl font-bold text-slate-800">Network Inventory</h2>
             <p className="text-slate-500">Manage routers, switches, OLTs, and infrastructure assets.</p>
          </div>
-         {/* Only Technical roles can Add Devices */}
-         {(canEdit || canValidate) && (
-             <button 
-                onClick={handleOpenAdd}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 transition shadow-sm"
-            >
-                <Plus size={20} /> Register Device
-             </button>
-         )}
+         <div className="flex gap-2">
+             <div className="bg-slate-100 p-1 rounded-lg flex items-center gap-1 border border-slate-200">
+                 <button 
+                    onClick={() => setViewMode('LIST')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition ${
+                        viewMode === 'LIST' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                 >
+                     <List size={16} /> List
+                 </button>
+                 <button 
+                    onClick={() => setViewMode('TREE')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition ${
+                        viewMode === 'TREE' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                 >
+                     <GitGraph size={16} /> Topology Tree
+                 </button>
+             </div>
+
+             {/* Only Technical roles can Add Devices */}
+             {(canEdit || canValidate) && (
+                 <button 
+                    onClick={handleOpenAdd}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 transition shadow-sm"
+                >
+                    <Plus size={20} /> Register Device
+                 </button>
+             )}
+         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-         <div className="p-4 border-b border-slate-100 flex items-center gap-4">
-            <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
-                <input 
-                    type="text" 
-                    placeholder="Search by Hostname, IP, SN or Location..." 
-                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-                    value={filterText}
-                    onChange={(e) => setFilterText(e.target.value)}
-                />
-            </div>
-            <div className="flex gap-2">
-                 <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full">
-                    <span className="w-2 h-2 rounded-full bg-green-500"></span> Active: {devices.filter(d => d.status === DeviceStatus.ACTIVE).length}
-                 </div>
-                 <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full">
-                    <span className="w-2 h-2 rounded-full bg-yellow-500"></span> Pending: {devices.filter(d => d.status === DeviceStatus.PENDING).length}
-                 </div>
-            </div>
-         </div>
+      {viewMode === 'TREE' ? (
+          <NetworkTopologyTree 
+            devices={devices} // Pass all devices, tree handles filtering
+            onSelectDevice={onSelectDevice}
+          />
+      ) : (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+             <div className="p-4 border-b border-slate-100 flex items-center gap-4">
+                <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+                    <input 
+                        type="text" 
+                        placeholder="Search by Hostname, IP, SN or Location..." 
+                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                        value={filterText}
+                        onChange={(e) => setFilterText(e.target.value)}
+                    />
+                </div>
+                <div className="flex gap-2">
+                     <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full">
+                        <span className="w-2 h-2 rounded-full bg-green-500"></span> Active: {devices.filter(d => d.status === DeviceStatus.ACTIVE).length}
+                     </div>
+                     <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full">
+                        <span className="w-2 h-2 rounded-full bg-yellow-500"></span> Pending: {devices.filter(d => d.status === DeviceStatus.PENDING).length}
+                     </div>
+                </div>
+             </div>
 
-         <div className="overflow-x-auto">
-             <table className="w-full text-sm text-left">
-                 <thead className="bg-slate-50 text-slate-600 uppercase tracking-wider text-xs font-semibold">
-                     <tr>
-                         <th className="px-6 py-4">Device Info</th>
-                         <th className="px-6 py-4">Type & Uplink</th>
-                         <th className="px-6 py-4">Network Details</th>
-                         <th className="px-6 py-4">Location & Owner</th>
-                         <th className="px-6 py-4">Status</th>
-                         <th className="px-6 py-4">Action</th>
-                     </tr>
-                 </thead>
-                 <tbody className="divide-y divide-slate-100">
-                     {filteredDevices.map(device => (
-                         <tr 
-                            key={device.id} 
-                            className="hover:bg-slate-50 cursor-pointer"
-                            onClick={() => onSelectDevice && onSelectDevice(device)}
-                         >
-                             <td className="px-6 py-4">
-                                 <div className="font-bold text-slate-800">{device.name}</div>
-                                 <div className="text-xs text-slate-500 font-mono">SN: {device.serial_number}</div>
-                                 {device.installation_photo && (
-                                     <div className="flex items-center gap-1 text-[10px] text-blue-600 mt-1">
-                                        <ImageIcon size={10} /> Photo Attached
-                                     </div>
-                                 )}
-                             </td>
-                             <td className="px-6 py-4">
-                                 <div className="flex items-center gap-2 mb-1">
-                                     <Server size={14} className="text-slate-400" />
-                                     <span className="font-medium text-slate-700">{device.type}</span>
-                                 </div>
-                                 {device.uplink_device_id && (
-                                     <div className="flex items-center gap-1.5 text-[10px] text-slate-500 bg-purple-50 px-1.5 py-0.5 rounded w-fit">
-                                         <Network size={10} className="text-purple-500"/>
-                                         Uplink: {getUplinkName(device.uplink_device_id)}
-                                     </div>
-                                 )}
-                             </td>
-                             <td className="px-6 py-4 font-mono text-xs">
-                                 {device.ip_address ? (
-                                    <div className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded inline-block mb-1">{device.ip_address}</div>
-                                 ) : (
-                                    <div className="text-slate-400 italic">--.--.--.--</div>
-                                 )}
-                                 <div className="text-slate-500">{device.mac_address}</div>
-                             </td>
-                             <td className="px-6 py-4">
-                                 <div className="flex items-center gap-1.5 text-slate-700 mb-1">
-                                     <MapPin size={14} className="text-slate-400" />
-                                     {device.location}
-                                 </div>
-                                 {device.customer_id && (
-                                     <div className="flex items-center gap-1.5 text-xs text-slate-500 bg-slate-50 w-fit px-1.5 py-0.5 rounded">
-                                         <User size={10} /> {getCustomerName(device.customer_id)}
-                                     </div>
-                                 )}
-                             </td>
-                             <td className="px-6 py-4">
-                                 {device.status === DeviceStatus.ACTIVE ? (
-                                     <span className="flex items-center gap-1 text-green-700 bg-green-100 px-2 py-1 rounded-full text-xs font-bold w-fit">
-                                         <ShieldCheck size={12} /> Active
-                                     </span>
-                                 ) : (
-                                     <span className="flex items-center gap-1 text-yellow-700 bg-yellow-100 px-2 py-1 rounded-full text-xs font-bold w-fit">
-                                         <Clock size={12} /> Pending
-                                     </span>
-                                 )}
-                                 {device.installed_by && device.status === DeviceStatus.PENDING && (
-                                     <div className="text-[10px] text-slate-400 mt-1">Tech: {device.installed_by}</div>
-                                 )}
-                             </td>
-                             <td className="px-6 py-4">
-                                 <div className="flex gap-2">
-                                     {/* View Detail Button */}
-                                     <button 
-                                        onClick={(e) => { e.stopPropagation(); onSelectDevice && onSelectDevice(device); }}
-                                        className="text-slate-500 hover:text-blue-600 bg-slate-100 p-1.5 rounded transition"
-                                        title="View Details"
-                                     >
-                                        <Eye size={16} />
-                                     </button>
-
-                                     {device.status === DeviceStatus.PENDING && canValidate && (
-                                         <button 
-                                            onClick={(e) => handleValidateClick(e, device)}
-                                            className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 rounded shadow-sm flex items-center gap-1 transition"
-                                         >
-                                             <CheckCircle size={12} /> Review
-                                         </button>
-                                     )}
-                                     
-                                     {canEdit && (
-                                         <button 
-                                            onClick={(e) => handleOpenEdit(e, device)}
-                                            className="text-slate-500 hover:text-blue-600 bg-slate-100 p-1.5 rounded transition"
-                                            title="Edit Device"
-                                         >
-                                            <Edit size={16} />
-                                         </button>
-                                     )}
-                                 </div>
-                             </td>
-                         </tr>
-                     ))}
-                     {filteredDevices.length === 0 && (
+             <div className="overflow-x-auto">
+                 <table className="w-full text-sm text-left">
+                     <thead className="bg-slate-50 text-slate-600 uppercase tracking-wider text-xs font-semibold">
                          <tr>
-                             <td colSpan={6} className="text-center py-8 text-slate-500">
-                                 No devices found.
-                             </td>
+                             <th className="px-6 py-4">Device Info</th>
+                             <th className="px-6 py-4">Type & Uplink</th>
+                             <th className="px-6 py-4">Network Details</th>
+                             <th className="px-6 py-4">Location & Owner</th>
+                             <th className="px-6 py-4">Status</th>
+                             <th className="px-6 py-4">Action</th>
                          </tr>
-                     )}
-                 </tbody>
-             </table>
-         </div>
-      </div>
+                     </thead>
+                     <tbody className="divide-y divide-slate-100">
+                         {filteredDevices.map(device => (
+                             <tr 
+                                key={device.id} 
+                                className="hover:bg-slate-50 cursor-pointer"
+                                onClick={() => onSelectDevice && onSelectDevice(device)}
+                             >
+                                 <td className="px-6 py-4">
+                                     <div className="font-bold text-slate-800">{device.name}</div>
+                                     <div className="text-xs text-slate-500 font-mono">SN: {device.serial_number}</div>
+                                     {device.installation_photo && (
+                                         <div className="flex items-center gap-1 text-[10px] text-blue-600 mt-1">
+                                            <ImageIcon size={10} /> Photo Attached
+                                         </div>
+                                     )}
+                                 </td>
+                                 <td className="px-6 py-4">
+                                     <div className="flex items-center gap-2 mb-1">
+                                         <Server size={14} className="text-slate-400" />
+                                         <span className="font-medium text-slate-700">{device.type}</span>
+                                     </div>
+                                     {device.uplink_device_id && (
+                                         <div className="flex items-center gap-1.5 text-[10px] text-slate-500 bg-purple-50 px-1.5 py-0.5 rounded w-fit">
+                                             <Network size={10} className="text-purple-500"/>
+                                             Uplink: {getUplinkName(device.uplink_device_id)}
+                                         </div>
+                                     )}
+                                 </td>
+                                 <td className="px-6 py-4 font-mono text-xs">
+                                     {device.ip_address ? (
+                                        <div className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded inline-block mb-1">{device.ip_address}</div>
+                                     ) : (
+                                        <div className="text-slate-400 italic">--.--.--.--</div>
+                                     )}
+                                     <div className="text-slate-500">{device.mac_address}</div>
+                                 </td>
+                                 <td className="px-6 py-4">
+                                     <div className="flex items-center gap-1.5 text-slate-700 mb-1">
+                                         <MapPin size={14} className="text-slate-400" />
+                                         {device.location}
+                                     </div>
+                                     {device.customer_id && (
+                                         <div className="flex items-center gap-1.5 text-xs text-slate-500 bg-slate-50 w-fit px-1.5 py-0.5 rounded">
+                                             <User size={10} /> {getCustomerName(device.customer_id)}
+                                         </div>
+                                     )}
+                                 </td>
+                                 <td className="px-6 py-4">
+                                     {device.status === DeviceStatus.ACTIVE ? (
+                                         <span className="flex items-center gap-1 text-green-700 bg-green-100 px-2 py-1 rounded-full text-xs font-bold w-fit">
+                                             <ShieldCheck size={12} /> Active
+                                         </span>
+                                     ) : (
+                                         <span className="flex items-center gap-1 text-yellow-700 bg-yellow-100 px-2 py-1 rounded-full text-xs font-bold w-fit">
+                                             <Clock size={12} /> Pending
+                                         </span>
+                                     )}
+                                     {device.installed_by && device.status === DeviceStatus.PENDING && (
+                                         <div className="text-[10px] text-slate-400 mt-1">Tech: {device.installed_by}</div>
+                                     )}
+                                 </td>
+                                 <td className="px-6 py-4">
+                                     <div className="flex gap-2">
+                                         {/* View Detail Button */}
+                                         <button 
+                                            onClick={(e) => { e.stopPropagation(); onSelectDevice && onSelectDevice(device); }}
+                                            className="text-slate-500 hover:text-blue-600 bg-slate-100 p-1.5 rounded transition"
+                                            title="View Details"
+                                         >
+                                            <Eye size={16} />
+                                         </button>
+
+                                         {device.status === DeviceStatus.PENDING && canValidate && (
+                                             <button 
+                                                onClick={(e) => handleValidateClick(e, device)}
+                                                className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 rounded shadow-sm flex items-center gap-1 transition"
+                                             >
+                                                 <CheckCircle size={12} /> Review
+                                             </button>
+                                         )}
+                                         
+                                         {canEdit && (
+                                             <button 
+                                                onClick={(e) => handleOpenEdit(e, device)}
+                                                className="text-slate-500 hover:text-blue-600 bg-slate-100 p-1.5 rounded transition"
+                                                title="Edit Device"
+                                             >
+                                                <Edit size={16} />
+                                             </button>
+                                         )}
+                                     </div>
+                                 </td>
+                             </tr>
+                         ))}
+                         {filteredDevices.length === 0 && (
+                             <tr>
+                                 <td colSpan={6} className="text-center py-8 text-slate-500">
+                                     No devices found.
+                                 </td>
+                             </tr>
+                         )}
+                     </tbody>
+                 </table>
+             </div>
+          </div>
+      )}
     </div>
   );
 };

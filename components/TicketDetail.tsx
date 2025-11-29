@@ -6,7 +6,7 @@ import { AIAnalysisResult, analyzeTicketWithGemini } from '../services/geminiSer
 import { 
   ArrowLeft, MapPin, Server, Users, Clock, AlertTriangle, 
   CheckCircle, Play, UserPlus, PenTool, Sparkles, MessageSquare,
-  History, FileText, BrainCircuit, Activity, Link as LinkIcon, Send, Wrench, XCircle, ArrowLeftRight
+  History, FileText, BrainCircuit, Activity, Link as LinkIcon, Send, Wrench, XCircle, ArrowLeftRight, Check
 } from 'lucide-react';
 import AssignTicketModal from './AssignTicketModal';
 import ResolveTicketModal from './ResolveTicketModal';
@@ -35,6 +35,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
   const [activeTab, setActiveTab] = useState<'overview' | 'ai' | 'history'>('overview');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<AIAnalysisResult | null>(null);
+  const [statusFeedback, setStatusFeedback] = useState<string | null>(null);
   
   // Note State
   const [noteText, setNoteText] = useState('');
@@ -56,6 +57,19 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
         setAiResult(null);
     }
   }, [ticket.id, ticket.aiAnalysis]);
+
+  // Helper to trigger visual feedback
+  const triggerFeedback = (message: string) => {
+      setStatusFeedback(message);
+      setTimeout(() => {
+          setStatusFeedback(null);
+      }, 3000);
+  };
+
+  const handleStatusChange = (newStatus: TicketStatus) => {
+      onUpdateStatus(ticket.id, newStatus);
+      triggerFeedback(`Status updated to ${newStatus}`);
+  };
 
   const handleAIAnalysis = async () => {
     setIsAnalyzing(true);
@@ -80,6 +94,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
             aiAnalysis: JSON.stringify(result),
             activityLog: updatedLogs
         });
+        triggerFeedback('AI Analysis Completed');
     }
     
     setIsAnalyzing(false);
@@ -105,7 +120,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
           status: TicketStatus.ASSIGNED,
           activityLog: updatedLogs
       });
-      
+      triggerFeedback(`Assigned to ${employee.full_name}`);
       // Optional: switch to history tab to show the new event
       // setActiveTab('history'); 
   };
@@ -130,6 +145,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
           activityLog: updatedLogs,
           description: ticket.description + resolutionSummary
       });
+      triggerFeedback('Ticket Resolved Successfully');
   };
 
   const handleAddNote = () => {
@@ -152,6 +168,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
 
     setNoteText('');
     setActiveTab('history'); // Switch to history to show the note
+    triggerFeedback('Note Added');
   };
 
   const getActionColor = (action: string) => {
@@ -177,13 +194,13 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
         return (
           <div className="flex gap-2">
             <button 
-              onClick={() => onUpdateStatus(ticket.id, TicketStatus.INVESTIGATING)}
+              onClick={() => handleStatusChange(TicketStatus.INVESTIGATING)}
               className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-sm"
             >
               <Play size={16} /> Start Investigation
             </button>
             <button 
-              onClick={() => onUpdateStatus(ticket.id, TicketStatus.CLOSED)}
+              onClick={() => handleStatusChange(TicketStatus.CLOSED)}
               className="flex items-center gap-2 bg-slate-100 text-slate-600 px-4 py-2 rounded-lg hover:bg-slate-200 transition shadow-sm border border-slate-200"
             >
               <XCircle size={16} /> False Alarm
@@ -211,13 +228,13 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
         return (
           <div className="flex gap-2">
             <button 
-                onClick={() => onUpdateStatus(ticket.id, TicketStatus.FIXING)}
+                onClick={() => handleStatusChange(TicketStatus.FIXING)}
                 className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition shadow-sm"
             >
                 <PenTool size={16} /> Start Fixing
             </button>
             <button 
-                onClick={() => onUpdateStatus(ticket.id, TicketStatus.INVESTIGATING)}
+                onClick={() => handleStatusChange(TicketStatus.INVESTIGATING)}
                 className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition shadow-sm"
             >
                 <ArrowLeftRight size={16} /> Unassign
@@ -234,7 +251,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                 <CheckCircle size={16} /> Mark Resolved
             </button>
             <button 
-                onClick={() => onUpdateStatus(ticket.id, TicketStatus.INVESTIGATING)}
+                onClick={() => handleStatusChange(TicketStatus.INVESTIGATING)}
                 className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition shadow-sm"
             >
                 <ArrowLeftRight size={16} /> Return to Investigation
@@ -245,13 +262,13 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
         return (
           <div className="flex gap-2">
              <button 
-               onClick={() => onUpdateStatus(ticket.id, TicketStatus.FIXING)}
+               onClick={() => handleStatusChange(TicketStatus.FIXING)}
                className="flex items-center gap-2 bg-amber-100 text-amber-700 border border-amber-200 px-4 py-2 rounded-lg hover:bg-amber-200 transition shadow-sm"
              >
                <Wrench size={16} /> Re-open
              </button>
              <button 
-               onClick={() => onUpdateStatus(ticket.id, TicketStatus.CLOSED)}
+               onClick={() => handleStatusChange(TicketStatus.CLOSED)}
                className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 transition shadow-sm"
              >
                <CheckCircle size={16} /> Close Ticket
@@ -261,7 +278,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
       case TicketStatus.CLOSED:
          return (
              <button 
-               onClick={() => onUpdateStatus(ticket.id, TicketStatus.OPEN)}
+               onClick={() => handleStatusChange(TicketStatus.OPEN)}
                className="flex items-center gap-2 bg-white border border-slate-300 text-slate-600 px-4 py-2 rounded-lg hover:bg-slate-50 transition shadow-sm"
              >
                <History size={16} /> Re-activate
@@ -302,6 +319,13 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
             <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${STATUS_COLORS[ticket.status]}`}>
               {ticket.status}
             </span>
+            {/* Visual Feedback for Status Updates */}
+            {statusFeedback && (
+                <div className="animate-in fade-in slide-in-from-left-2 duration-300 flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-bold">
+                    <CheckCircle size={12} className="text-green-600" />
+                    {statusFeedback}
+                </div>
+            )}
           </div>
           <p className="text-slate-500">{ticket.title}</p>
         </div>
@@ -520,7 +544,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                            ticket.link_id.startsWith('CID') ? (
                                <button onClick={() => onNavigateToCustomer && onNavigateToCustomer(ticket.link_id!)} className="text-blue-600 hover:underline flex items-start text-left gap-1 transition">
                                    <span>{ticket.link_id}</span> <LinkIcon size={12} className="mt-1" />
-                               </button>
+                                </button>
                            ) : (
                                <span className="text-slate-800">{ticket.link_id}</span>
                            )
@@ -605,29 +629,4 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                             Assign
                         </button>
                     )}
-               </div>
                
-               {ticket.assignee ? (
-                   <div className="flex items-center gap-3">
-                     <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                       {ticket.assignee.charAt(0)}
-                     </div>
-                     <div>
-                       <p className="font-medium text-slate-800">{ticket.assignee}</p>
-                       <p className="text-xs text-slate-500">Technician</p>
-                     </div>
-                   </div>
-               ) : (
-                   <div className="flex items-center gap-2 text-slate-500 italic text-sm p-2 bg-slate-50 rounded border border-dashed border-slate-300">
-                       <UserPlus size={16} /> Unassigned
-                   </div>
-               )}
-           </div>
-
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default TicketDetail;

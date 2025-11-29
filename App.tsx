@@ -43,6 +43,14 @@ enum View {
   SETTINGS = 'settings'
 }
 
+// Mapping detail views to their parent menu item for highlighting
+const PARENT_VIEWS: Partial<Record<View, View>> = {
+  [View.DETAIL_TICKET]: View.TICKETS,
+  [View.DETAIL_CUSTOMER]: View.CUSTOMERS,
+  [View.DETAIL_DEVICE]: View.DEVICES,
+  [View.DETAIL_EMPLOYEE]: View.EMPLOYEES,
+};
+
 const App: React.FC = () => {
   // --- AUTH STATE ---
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -503,14 +511,9 @@ const App: React.FC = () => {
       );
   }
 
-  const checkIsActive = (view: View) => {
-      if (currentView === view) return true;
-      // Handle Detail Views keeping parent nav active
-      if (view === View.TICKETS && currentView === View.DETAIL_TICKET) return true;
-      if (view === View.CUSTOMERS && currentView === View.DETAIL_CUSTOMER) return true;
-      if (view === View.DEVICES && currentView === View.DETAIL_DEVICE) return true;
-      if (view === View.EMPLOYEES && currentView === View.DETAIL_EMPLOYEE) return true;
-      return false;
+  // Helper to check if a menu item should be active
+  const checkIsActive = (menuView: View) => {
+      return currentView === menuView || PARENT_VIEWS[currentView] === menuView;
   };
 
   const NavItem = ({ view, icon, label }: { view: View, icon: React.ReactNode, label: string }) => {
@@ -525,11 +528,12 @@ const App: React.FC = () => {
         }`}
         >
         {icon}
-        <span className="font-medium">{label}</span>
+        <span className="font-medium text-sm">{label}</span>
         </button>
     );
   };
 
+  // Permission Logic for Menu Items
   const canManagePlans = currentUserRole === UserRole.PRODUCT_MANAGER || currentUserRole === UserRole.MANAGER;
   const canManageEmployees = currentUserRole === UserRole.HRD || currentUserRole === UserRole.MANAGER;
   const canViewBilling = currentUserRole === UserRole.FINANCE || currentUserRole === UserRole.MANAGER || currentUserRole === UserRole.SALES;
@@ -562,10 +566,9 @@ const App: React.FC = () => {
 
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-30 w-64 bg-slate-900 text-white transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
+        fixed inset-y-0 left-0 z-30 w-64 bg-slate-900 text-white transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col h-full
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="h-full flex flex-col">
           {/* Logo */}
           <div className="p-6 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
              <div className="flex items-center gap-2">
@@ -578,11 +581,12 @@ const App: React.FC = () => {
           </div>
 
           {/* Nav - SCROLLABLE AREA */}
-          <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             <NavItem view={View.DASHBOARD} icon={<LayoutDashboard size={20} />} label="Dashboard" />
             <NavItem view={View.TICKETS} icon={<TicketIcon size={20} />} label="Issue Tickets" />
             <NavItem view={View.DEVICES} icon={<Server size={20} />} label="Inventory & Topology" />
             <NavItem view={View.CUSTOMERS} icon={<Users size={20} />} label="Customers" />
+            
             {canViewMaintenance && (
                 <NavItem view={View.MAINTENANCE} icon={<Calendar size={20} />} label="Maintenance" />
             )}
@@ -590,6 +594,7 @@ const App: React.FC = () => {
                 <NavItem view={View.REPORTS} icon={<FileText size={20} />} label="Reports" />
             )}
             <NavItem view={View.KNOWLEDGE_BASE} icon={<Book size={20} />} label="Knowledge Base" />
+            
             {canViewBilling && (
                 <NavItem view={View.BILLING} icon={<CreditCard size={20} />} label="Billing & Invoices" />
             )}
@@ -637,7 +642,6 @@ const App: React.FC = () => {
                </button>
              </div>
           </div>
-        </div>
       </aside>
 
       {/* Main Content */}
@@ -652,7 +656,7 @@ const App: React.FC = () => {
             <h2 className="text-lg font-semibold text-slate-800 hidden md:block">
               {currentView === View.DASHBOARD && `${currentUserRole} Dashboard`}
               {(currentView === View.TICKETS || currentView === View.DETAIL_TICKET) && 'Ticket Management'}
-              {(currentView === View.DEVICES || currentView === View.DETAIL_DEVICE) && 'Device Inventory & Assets'}
+              {(currentView === View.DEVICES || currentView === View.DETAIL_DEVICE) && 'Inventory & Assets'}
               {(currentView === View.CUSTOMERS || currentView === View.DETAIL_CUSTOMER) && 'Customer Relationship'}
               {currentView === View.MAINTENANCE && 'Planned Maintenance'}
               {currentView === View.REPORTS && 'System Reports & Analytics'}
