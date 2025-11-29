@@ -179,6 +179,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
     if (lower.includes('ai') || lower.includes('diagnostic')) return 'bg-indigo-500 border-indigo-200';
     if (lower.includes('alert') || lower.includes('critical') || lower.includes('escalat')) return 'bg-red-500 border-red-200';
     if (lower.includes('note')) return 'bg-blue-300 border-blue-100';
+    if (lower.includes('status')) return 'bg-cyan-500 border-cyan-200';
     return 'bg-blue-500 border-blue-200';
   };
 
@@ -531,29 +532,39 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                     <span className="font-medium text-slate-800">{ticket.location}</span>
                   </div>
                 </li>
+                
+                {/* DEVICE ID RELATIONSHIP */}
+                {ticket.device_id && (
                 <li className="flex items-start gap-3">
                   <Server className="text-slate-400 mt-0.5" size={18} />
                   <div>
-                    <span className="block text-xs text-slate-500">Device / Link ID</span>
+                    <span className="block text-xs text-slate-500">Affected Device</span>
                     <span className="font-medium text-slate-800 break-all">
-                       {ticket.device_id ? (
-                           <button onClick={() => onNavigateToDevice && onNavigateToDevice(ticket.device_id!)} className="text-blue-600 hover:underline flex items-start text-left gap-1 transition">
-                               <span>{getDeviceName(ticket.device_id)}</span> <LinkIcon size={12} className="mt-1" />
-                           </button>
-                       ) : ticket.link_id ? (
-                           ticket.link_id.startsWith('CID') ? (
-                               <button onClick={() => onNavigateToCustomer && onNavigateToCustomer(ticket.link_id!)} className="text-blue-600 hover:underline flex items-start text-left gap-1 transition">
-                                   <span>{ticket.link_id}</span> <LinkIcon size={12} className="mt-1" />
-                                </button>
-                           ) : (
-                               <span className="text-slate-800">{ticket.link_id}</span>
-                           )
-                       ) : (
-                           'N/A'
-                       )}
+                        <button 
+                            onClick={() => onNavigateToDevice && onNavigateToDevice(ticket.device_id!)} 
+                            className="text-blue-600 hover:underline flex items-start text-left gap-1 transition"
+                        >
+                            <span>{getDeviceName(ticket.device_id)}</span> <LinkIcon size={12} className="mt-1" />
+                        </button>
                     </span>
                   </div>
                 </li>
+                )}
+
+                {/* LINK ID RELATIONSHIP (Non-Customer) */}
+                {ticket.link_id && !ticket.link_id.startsWith('CID') && (
+                <li className="flex items-start gap-3">
+                  <Activity className="text-slate-400 mt-0.5" size={18} />
+                  <div>
+                    <span className="block text-xs text-slate-500">Link / Circuit ID</span>
+                    <span className="font-medium text-slate-800 break-all">
+                       {ticket.link_id}
+                    </span>
+                  </div>
+                </li>
+                )}
+
+                {/* CUSTOMER ID RELATIONSHIP */}
                 {(ticket.type === 'Customer' || ticket.type === 'Billing' || (ticket.link_id && ticket.link_id.startsWith('CID'))) && (
                   <li className="flex items-start gap-3">
                      <Users className="text-slate-400 mt-0.5" size={18} />
@@ -569,6 +580,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                      </div>
                   </li>
                 )}
+                
                 {/* NEW RELATIONAL FIELDS */}
                 {ticket.related_invoice_id && (
                     <li className="flex items-start gap-3">
@@ -629,4 +641,29 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                             Assign
                         </button>
                     )}
+               </div>
                
+               {ticket.assignee ? (
+                   <div className="flex items-center gap-3">
+                     <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                       {ticket.assignee.charAt(0)}
+                     </div>
+                     <div>
+                       <p className="font-medium text-slate-800">{ticket.assignee}</p>
+                       <p className="text-xs text-slate-500">Technician</p>
+                     </div>
+                   </div>
+               ) : (
+                   <div className="flex items-center gap-2 text-slate-500 italic text-sm p-2 bg-slate-50 rounded border border-dashed border-slate-300">
+                       <UserPlus size={16} /> Unassigned
+                   </div>
+               )}
+           </div>
+
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TicketDetail;
