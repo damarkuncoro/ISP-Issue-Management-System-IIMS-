@@ -1,19 +1,20 @@
-
 import React, { useState } from 'react';
-import { Customer, UserRole, CustomerStatus, ServicePlan } from '../types';
-import { ArrowLeft, User, MapPin, Phone, Mail, FileText, Server, Shield, CreditCard, Activity, Edit } from 'lucide-react';
+import { Customer, UserRole, CustomerStatus, ServicePlan, Invoice, InvoiceStatus } from '../types';
+import { ArrowLeft, User, MapPin, Phone, Mail, FileText, Server, Shield, CreditCard, Activity, Edit, Download, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import EditCustomerModal from './EditCustomerModal';
 
 interface CustomerDetailProps {
   customer: Customer;
   userRole: UserRole;
   servicePlans: ServicePlan[];
+  invoices?: Invoice[]; // Add invoices prop
   onBack: () => void;
   onUpdateCustomer: (id: string, data: any) => void;
 }
 
-const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, userRole, servicePlans, onBack, onUpdateCustomer }) => {
+const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, userRole, servicePlans, invoices = [], onBack, onUpdateCustomer }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'profile' | 'billing'>('profile');
 
   // --- PERMISSION LOGIC ---
   const isManager = userRole === UserRole.MANAGER;
@@ -21,13 +22,14 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, userRole, ser
   const isNOC = userRole === UserRole.NOC || userRole === UserRole.NETWORK;
   const isProvisioning = userRole === UserRole.PROVISIONING;
   const isSales = userRole === UserRole.SALES;
+  const isFinance = userRole === UserRole.FINANCE;
 
   // Edit Permission: Anyone who can see details can usually request an edit, 
   // but the Modal handles specifically what they can touch.
-  const canOpenEdit = isManager || isCS || isSales || isProvisioning || isNOC;
+  const canOpenEdit = isManager || isCS || isSales || isProvisioning || isNOC || isFinance;
 
   // Personal Info Visibility
-  const canViewPersonal = isManager || isCS || isSales || isProvisioning;
+  const canViewPersonal = isManager || isCS || isSales || isProvisioning || isFinance;
 
   // Technical Info Visibility
   const canViewTechnical = isManager || isNOC || isProvisioning;
@@ -44,6 +46,21 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, userRole, ser
       default: return 'bg-slate-100 text-slate-600 border-slate-200';
     }
   };
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(val);
+  };
+
+  const getInvoiceStatusBadge = (status: InvoiceStatus) => {
+    switch (status) {
+      case InvoiceStatus.PAID: return <span className="flex items-center gap-1 bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-[10px] font-bold w-fit"><CheckCircle size={10}/> Paid</span>;
+      case InvoiceStatus.UNPAID: return <span className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-bold w-fit"><Clock size={10}/> Unpaid</span>;
+      case InvoiceStatus.OVERDUE: return <span className="flex items-center gap-1 bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-[10px] font-bold w-fit"><AlertCircle size={10}/> Overdue</span>;
+      default: return null;
+    }
+  };
+
+  const customerInvoices = invoices.filter(inv => inv.customer_id === customer.id);
 
   return (
     <div className="space-y-6 animate-in slide-in-from-right duration-300">
@@ -84,7 +101,25 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, userRole, ser
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Tab Nav */}
+      <div className="flex gap-4 border-b border-slate-200">
+          <button 
+             onClick={() => setActiveTab('profile')}
+             className={`px-4 py-2 text-sm font-medium border-b-2 transition ${activeTab === 'profile' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          >
+             Profile & Network
+          </button>
+          <button 
+             onClick={() => setActiveTab('billing')}
+             className={`px-4 py-2 text-sm font-medium border-b-2 transition ${activeTab === 'billing' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          >
+             Billing History
+          </button>
+      </div>
+
+      {/* PROFILE TAB */}
+      {activeTab === 'profile' && (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in">
         
         {/* LEFT COLUMN: Personal & Account Info */}
         <div className="lg:col-span-2 space-y-6">
@@ -254,8 +289,55 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, userRole, ser
                 </div>
             </div>
         </div>
-
       </div>
+      )}
+
+      {/* BILLING TAB */}
+      {activeTab === 'billing' && (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                      <CreditCard size={20} className="text-green-600" /> Invoice History
+                  </h3>
+                  <button className="text-blue-600 text-sm font-medium hover:underline">Download Statement</button>
+              </div>
+              <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50 text-slate-600 font-semibold uppercase text-xs">
+                      <tr>
+                          <th className="px-6 py-4">Invoice ID</th>
+                          <th className="px-6 py-4">Issue Date</th>
+                          <th className="px-6 py-4">Amount</th>
+                          <th className="px-6 py-4">Due Date</th>
+                          <th className="px-6 py-4">Status</th>
+                          <th className="px-6 py-4">Action</th>
+                      </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                      {customerInvoices.length > 0 ? (
+                          customerInvoices.map(inv => (
+                              <tr key={inv.id} className="hover:bg-slate-50">
+                                  <td className="px-6 py-4 font-mono text-slate-700">{inv.id}</td>
+                                  <td className="px-6 py-4 text-slate-600">{new Date(inv.issue_date).toLocaleDateString()}</td>
+                                  <td className="px-6 py-4 font-bold text-slate-800">{formatCurrency(inv.amount)}</td>
+                                  <td className="px-6 py-4 text-slate-600">{new Date(inv.due_date).toLocaleDateString()}</td>
+                                  <td className="px-6 py-4">
+                                      {getInvoiceStatusBadge(inv.status)}
+                                  </td>
+                                  <td className="px-6 py-4">
+                                      <button className="text-slate-500 hover:text-blue-600 p-1.5 rounded transition bg-slate-100" title="Download PDF">
+                                          <Download size={14} />
+                                      </button>
+                                  </td>
+                              </tr>
+                          ))
+                      ) : (
+                          <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500">No invoices generated yet.</td></tr>
+                      )}
+                  </tbody>
+              </table>
+          </div>
+      )}
+
     </div>
   );
 };

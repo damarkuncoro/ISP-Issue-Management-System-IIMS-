@@ -34,7 +34,8 @@ export enum UserRole {
   CS = 'Customer Service',
   PROVISIONING = 'Provisioning Team',
   PRODUCT_MANAGER = 'Product Manager',
-  HRD = 'HRD / Human Resources'
+  HRD = 'HRD / Human Resources',
+  FINANCE = 'Finance / Billing'
 }
 
 export interface ActivityLogEntry {
@@ -107,6 +108,7 @@ export interface Device {
   last_updated: string;
   installed_by?: string;
   validated_by?: string;
+  installation_photo?: string; // Mock URL or Base64
 }
 
 // --- CUSTOMER TYPES ---
@@ -178,4 +180,24 @@ export interface Employee {
   status: EmployeeStatus;
   join_date: string;
   reports_to?: string; // ID of the manager (another Employee)
+}
+
+// --- INVOICE TYPES ---
+
+export enum InvoiceStatus {
+  PAID = 'Paid',
+  UNPAID = 'Unpaid',
+  OVERDUE = 'Overdue',
+  CANCELLED = 'Cancelled'
+}
+
+export interface Invoice {
+  id: string; // INV-YYYYMM-xxxx
+  customer_id: string;
+  amount: number;
+  issue_date: string;
+  due_date: string;
+  status: InvoiceStatus;
+  payment_date?: string;
+  items: { description: string, amount: number }[];
 }

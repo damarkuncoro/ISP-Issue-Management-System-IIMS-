@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { Device, DeviceStatus, UserRole } from '../types';
-import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit } from 'lucide-react';
+import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon } from 'lucide-react';
 import AddDeviceModal from './AddDeviceModal';
 
 interface DeviceInventoryProps {
@@ -41,13 +40,34 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, on
     setIsModalOpen(true);
   };
 
+  // When validating, we open the modal in Edit mode so NOC can fill IP Address
+  const handleValidateClick = (device: Device) => {
+      setEditingDevice(device);
+      setIsModalOpen(true);
+  };
+
+  const handleModalSubmit = (deviceData: any) => {
+      if (editingDevice) {
+          // If we are editing (or validating)
+          if (editingDevice.status === DeviceStatus.PENDING && canValidate) {
+             // If validation flow, ensure status is set to active and call the specific validation handler or update handler
+             // Here we reuse update logic but ensure status is Active if it was pending
+             onUpdateDevice(editingDevice.id, { ...deviceData, status: DeviceStatus.ACTIVE });
+          } else {
+             onUpdateDevice(editingDevice.id, deviceData);
+          }
+      } else {
+          onAddDevice(deviceData);
+      }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <AddDeviceModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        onSubmit={onAddDevice}
-        onUpdate={onUpdateDevice}
+        onSubmit={handleModalSubmit} // We use a wrapper to handle add vs update
+        onUpdate={(id, data) => handleModalSubmit(data)} // Redirect update to same wrapper
         userRole={userRole}
         device={editingDevice}
       />
@@ -108,6 +128,11 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, on
                              <td className="px-6 py-4">
                                  <div className="font-bold text-slate-800">{device.name}</div>
                                  <div className="text-xs text-slate-500 font-mono">SN: {device.serial_number}</div>
+                                 {device.installation_photo && (
+                                     <div className="flex items-center gap-1 text-[10px] text-blue-600 mt-1">
+                                        <ImageIcon size={10} /> Photo Attached
+                                     </div>
+                                 )}
                              </td>
                              <td className="px-6 py-4">
                                  <div className="flex items-center gap-2">
@@ -117,7 +142,11 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, on
                                  <div className="text-xs text-slate-500">{device.model}</div>
                              </td>
                              <td className="px-6 py-4 font-mono text-xs">
-                                 <div className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded inline-block mb-1">{device.ip_address}</div>
+                                 {device.ip_address ? (
+                                    <div className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded inline-block mb-1">{device.ip_address}</div>
+                                 ) : (
+                                    <div className="text-slate-400 italic">--.--.--.--</div>
+                                 )}
                                  <div className="text-slate-500">{device.mac_address}</div>
                              </td>
                              <td className="px-6 py-4">
@@ -133,21 +162,21 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, on
                                      </span>
                                  ) : (
                                      <span className="flex items-center gap-1 text-yellow-700 bg-yellow-100 px-2 py-1 rounded-full text-xs font-bold w-fit">
-                                         <Clock size={12} /> Pending Validation
+                                         <Clock size={12} /> Pending
                                      </span>
                                  )}
                                  {device.installed_by && device.status === DeviceStatus.PENDING && (
-                                     <div className="text-[10px] text-slate-400 mt-1">Input by: {device.installed_by}</div>
+                                     <div className="text-[10px] text-slate-400 mt-1">Tech: {device.installed_by}</div>
                                  )}
                              </td>
                              <td className="px-6 py-4">
                                  <div className="flex gap-2">
                                      {device.status === DeviceStatus.PENDING && canValidate && (
                                          <button 
-                                            onClick={() => onValidateDevice(device.id)}
+                                            onClick={() => handleValidateClick(device)}
                                             className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 rounded shadow-sm flex items-center gap-1 transition"
                                          >
-                                             <CheckCircle size={12} /> Validate
+                                             <CheckCircle size={12} /> Review
                                          </button>
                                      )}
                                      

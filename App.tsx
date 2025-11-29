@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Ticket as TicketIcon, Settings, Bell, Search, User, Menu, X, ChevronDown, Server, Users, DollarSign, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Ticket as TicketIcon, Settings as SettingsIcon, Bell, Search, User, Menu, X, ChevronDown, Server, Users, DollarSign, Briefcase, CreditCard } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TicketList from './components/TicketList';
 import TicketDetail from './components/TicketDetail';
@@ -11,8 +10,10 @@ import CustomerDetail from './components/CustomerDetail';
 import ServicePlanManager from './components/ServicePlanManager';
 import EmployeeManagement from './components/EmployeeManagement';
 import EmployeeDetail from './components/EmployeeDetail';
-import { MOCK_TICKETS, MOCK_DEVICES, MOCK_CUSTOMERS, MOCK_SERVICE_PLANS, MOCK_EMPLOYEES } from './constants';
-import { Ticket, TicketStatus, ActivityLogEntry, Severity, UserRole, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee } from './types';
+import Settings from './components/Settings'; 
+import BillingList from './components/BillingList'; // Import new component
+import { MOCK_TICKETS, MOCK_DEVICES, MOCK_CUSTOMERS, MOCK_SERVICE_PLANS, MOCK_EMPLOYEES, MOCK_INVOICES } from './constants';
+import { Ticket, TicketStatus, ActivityLogEntry, Severity, UserRole, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, Invoice, InvoiceStatus } from './types';
 import { generateTicketSummary } from './services/geminiService';
 
 enum View {
@@ -22,6 +23,7 @@ enum View {
   CUSTOMERS = 'customers',
   SERVICE_PLANS = 'service_plans',
   EMPLOYEES = 'employees',
+  BILLING = 'billing', // New View
   DETAIL_TICKET = 'detail_ticket',
   DETAIL_CUSTOMER = 'detail_customer',
   DETAIL_EMPLOYEE = 'detail_employee',
@@ -36,10 +38,12 @@ const App: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>(MOCK_CUSTOMERS);
   const [servicePlans, setServicePlans] = useState<ServicePlan[]>(MOCK_SERVICE_PLANS);
   const [employees, setEmployees] = useState<Employee[]>(MOCK_EMPLOYEES);
+  const [invoices, setInvoices] = useState<Invoice[]>(MOCK_INVOICES); // State for Invoices
   
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [deviceToValidate, setDeviceToValidate] = useState<Device | null>(null);
   
   const [aiSummary, setAiSummary] = useState<string>('');
   const [currentUserRole, setCurrentUserRole] = useState<UserRole>(UserRole.NOC);
@@ -210,11 +214,23 @@ const App: React.FC = () => {
     showNotification('Device Validated', `Device ${id} is now Active and monitored.`, 'success');
   };
 
+  const handleDashboardValidateDevice = (device: Device) => {
+      // Navigate to Devices view
+      setCurrentView(View.DEVICES);
+      // In a real app we might pass a "selectedDevice" prop to DeviceInventory to auto-open modal
+      // For now, we rely on the user finding it or future implementation of auto-open
+  };
+
   // --- CUSTOMER HANDLERS ---
 
   const handleCustomerSelect = (customer: Customer) => {
     setSelectedCustomer(customer);
     setCurrentView(View.DETAIL_CUSTOMER);
+  };
+
+  const handleDashboardCustomerSelect = (customer: Customer) => {
+      setSelectedCustomer(customer);
+      setCurrentView(View.DETAIL_CUSTOMER); // This will open details where Provisioning button exists
   };
 
   const handleAddCustomer = (customerData: any) => {
@@ -301,6 +317,19 @@ const App: React.FC = () => {
     setCurrentView(View.DETAIL_EMPLOYEE);
   };
 
+  // --- INVOICE HANDLERS ---
+  const handleInvoiceStatusUpdate = (id: string, status: InvoiceStatus) => {
+    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status, payment_date: status === InvoiceStatus.PAID ? new Date().toISOString().split('T')[0] : undefined } : inv));
+    showNotification('Payment Recorded', `Invoice ${id} marked as Paid.`, 'success');
+  };
+
+
+  // --- SETTINGS HANDLER ---
+  const handleSaveSettings = (section: string, data: any) => {
+      console.log(`Saving ${section} config:`, data);
+      showNotification('Settings Saved', `System ${section} configuration updated successfully.`, 'success');
+  };
+
 
   // --- UI COMPONENTS ---
 
@@ -320,6 +349,7 @@ const App: React.FC = () => {
 
   const canManagePlans = currentUserRole === UserRole.PRODUCT_MANAGER || currentUserRole === UserRole.MANAGER;
   const canManageEmployees = currentUserRole === UserRole.HRD || currentUserRole === UserRole.MANAGER;
+  const canViewBilling = currentUserRole === UserRole.FINANCE || currentUserRole === UserRole.MANAGER || currentUserRole === UserRole.SALES;
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -361,13 +391,16 @@ const App: React.FC = () => {
             <NavItem view={View.TICKETS} icon={<TicketIcon size={20} />} label="Issue Tickets" />
             <NavItem view={View.DEVICES} icon={<Server size={20} />} label="Inventory / Assets" />
             <NavItem view={View.CUSTOMERS} icon={<Users size={20} />} label="Customers" />
+            {canViewBilling && (
+                <NavItem view={View.BILLING} icon={<CreditCard size={20} />} label="Billing & Invoices" />
+            )}
             {canManagePlans && (
                 <NavItem view={View.SERVICE_PLANS} icon={<DollarSign size={20} />} label="Service Plans" />
             )}
             {canManageEmployees && (
                 <NavItem view={View.EMPLOYEES} icon={<Briefcase size={20} />} label="Employees / HR" />
             )}
-            <NavItem view={View.SETTINGS} icon={<Settings size={20} />} label="Settings" />
+            <NavItem view={View.SETTINGS} icon={<SettingsIcon size={20} />} label="Settings" />
           </nav>
 
           {/* User Profile / Role Switcher */}
@@ -417,6 +450,7 @@ const App: React.FC = () => {
               {(currentView === View.TICKETS || currentView === View.DETAIL_TICKET) && 'Ticket Management'}
               {currentView === View.DEVICES && 'Device Inventory & Assets'}
               {(currentView === View.CUSTOMERS || currentView === View.DETAIL_CUSTOMER) && 'Customer Relationship & Provisioning'}
+              {currentView === View.BILLING && 'Finance & Billing Overview'}
               {currentView === View.SERVICE_PLANS && 'Product & Service Plans'}
               {(currentView === View.EMPLOYEES || currentView === View.DETAIL_EMPLOYEE) && 'HR Information System'}
               {currentView === View.SETTINGS && 'System Settings'}
@@ -443,10 +477,14 @@ const App: React.FC = () => {
               {currentView === View.DASHBOARD && (
                 <Dashboard 
                     tickets={tickets} 
+                    customers={customers}
+                    devices={devices}
                     userRole={currentUserRole}
                     onCreateTicket={handleCreateTicket}
                     onNavigateToTicket={handleTicketSelect}
                     onViewAllTickets={() => setCurrentView(View.TICKETS)}
+                    onNavigateToCustomer={handleDashboardCustomerSelect}
+                    onValidateDevice={handleDashboardValidateDevice}
                 />
               )}
               {currentView === View.TICKETS && (
@@ -474,6 +512,14 @@ const App: React.FC = () => {
                    onVerifyCustomer={handleVerifyCustomer}
                    onProvisionCustomer={handleProvisionCustomer}
                    onSelectCustomer={handleCustomerSelect}
+                />
+              )}
+              {currentView === View.BILLING && (
+                <BillingList
+                    invoices={invoices}
+                    customers={customers}
+                    userRole={currentUserRole}
+                    onUpdateStatus={handleInvoiceStatusUpdate}
                 />
               )}
               {currentView === View.SERVICE_PLANS && (
@@ -504,6 +550,7 @@ const App: React.FC = () => {
                     customer={selectedCustomer}
                     userRole={currentUserRole}
                     servicePlans={servicePlans}
+                    invoices={invoices}
                     onBack={() => setCurrentView(View.CUSTOMERS)}
                     onUpdateCustomer={handleUpdateCustomer}
                 />
@@ -517,11 +564,7 @@ const App: React.FC = () => {
                 />
               )}
               {currentView === View.SETTINGS && (
-                <div className="bg-white rounded-xl p-12 text-center text-slate-500">
-                  <Settings size={48} className="mx-auto mb-4 text-slate-300" />
-                  <h3 className="text-xl font-medium text-slate-800">Settings</h3>
-                  <p>System configuration accessible to Admin role only.</p>
-                </div>
+                <Settings onSave={handleSaveSettings} />
               )}
            </div>
         </main>

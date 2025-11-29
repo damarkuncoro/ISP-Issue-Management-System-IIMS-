@@ -1,17 +1,23 @@
 
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { Ticket, TicketStatus, Severity, UserRole, TicketType } from '../types';
+import { Ticket, TicketStatus, Severity, UserRole, TicketType, Customer, Device } from '../types';
 import { Activity, CheckCircle, Clock, MapPin, Truck, Shield, Server, DollarSign, TrendingUp } from 'lucide-react';
 import TopologyMap from './TopologyMap';
 import HelpdeskDashboard from './dashboard/HelpdeskDashboard';
+import ProvisioningDashboard from './dashboard/ProvisioningDashboard';
 
 interface DashboardProps {
   tickets: Ticket[];
+  customers: Customer[];
+  devices: Device[];
   userRole?: UserRole;
   onCreateTicket: (data: any) => void;
   onNavigateToTicket: (ticket: Ticket) => void;
   onViewAllTickets: () => void;
+  // New navigation props for Provisioning view
+  onNavigateToCustomer: (customer: Customer) => void;
+  onValidateDevice: (device: Device) => void;
 }
 
 const StatCard = ({ title, value, subtext, icon, colorClass, active }: { title: string, value: string | number, subtext: string, icon: React.ReactNode, colorClass: string, active?: boolean }) => (
@@ -27,7 +33,17 @@ const StatCard = ({ title, value, subtext, icon, colorClass, active }: { title: 
   </div>
 );
 
-const Dashboard: React.FC<DashboardProps> = ({ tickets, userRole = UserRole.NOC, onCreateTicket, onNavigateToTicket, onViewAllTickets }) => {
+const Dashboard: React.FC<DashboardProps> = ({ 
+  tickets, 
+  customers, 
+  devices, 
+  userRole = UserRole.NOC, 
+  onCreateTicket, 
+  onNavigateToTicket, 
+  onViewAllTickets,
+  onNavigateToCustomer,
+  onValidateDevice
+}) => {
   const activeTickets = tickets.filter(t => t.status !== TicketStatus.CLOSED && t.status !== TicketStatus.RESOLVED);
   const criticalCount = activeTickets.filter(t => t.severity === Severity.CRITICAL).length;
   const resolvedToday = tickets.filter(t => t.status === TicketStatus.RESOLVED || t.status === TicketStatus.CLOSED).length;
@@ -414,6 +430,15 @@ const Dashboard: React.FC<DashboardProps> = ({ tickets, userRole = UserRole.NOC,
             onCreateTicket={onCreateTicket} 
             onNavigateToTicket={onNavigateToTicket}
             onViewAllTickets={onViewAllTickets}
+          />
+        );
+    case UserRole.PROVISIONING:
+        return (
+          <ProvisioningDashboard 
+            customers={customers} 
+            devices={devices} 
+            onNavigateToCustomer={onNavigateToCustomer}
+            onValidateDevice={onValidateDevice}
           />
         );
     case UserRole.MANAGER:
