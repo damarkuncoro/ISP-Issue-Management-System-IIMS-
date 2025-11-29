@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, Ticket as TicketIcon, Settings as SettingsIcon, Bell, Search, User, Menu, X, ChevronDown, Server, Users, DollarSign, Briefcase, CreditCard, LogOut, Calendar, FileText, Book } from 'lucide-react';
 import Dashboard from './components/Dashboard';
@@ -20,7 +21,7 @@ import AIAssistant from './components/AIAssistant';
 import Reports from './components/Reports';
 import KnowledgeBase from './components/KnowledgeBase';
 import { MOCK_TICKETS, MOCK_DEVICES, MOCK_CUSTOMERS, MOCK_SERVICE_PLANS, MOCK_EMPLOYEES, MOCK_INVOICES, MOCK_MAINTENANCE, MOCK_KB } from './constants';
-import { Ticket, TicketStatus, ActivityLogEntry, Severity, UserRole, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, Invoice, InvoiceStatus, Maintenance, MaintenanceStatus, KBArticle } from './types';
+import { Ticket, TicketStatus, ActivityLogEntry, Severity, UserRole, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, Invoice, InvoiceStatus, Maintenance, MaintenanceStatus, KBArticle, TicketType } from './types';
 import { generateTicketSummary } from './services/geminiService';
 
 enum View {
@@ -347,6 +348,45 @@ const App: React.FC = () => {
     }
     
     showNotification('Customer Updated', 'Customer data updated successfully.', 'success');
+  };
+
+  const handleTerminateCustomer = (id: string, reason: string, date: string, createTicket: boolean) => {
+      // 1. Update Customer Status
+      const timestamp = new Date().toISOString();
+      const updates = {
+          status: CustomerStatus.TERMINATED,
+          termination_reason: reason,
+          termination_date: date,
+          last_updated: timestamp
+      };
+
+      setCustomers(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+      
+      // Update selected view
+      if (selectedCustomer && selectedCustomer.id === id) {
+          setSelectedCustomer({ ...selectedCustomer, ...updates });
+      }
+
+      showNotification('Customer Terminated', `Subscription stopped. Reason: ${reason}`, 'warning');
+
+      // 2. Auto Create Ticket if requested
+      if (createTicket) {
+          const cust = customers.find(c => c.id === id);
+          if (cust) {
+              const ticketData = {
+                  title: `Asset Retrieval: ${cust.name}`,
+                  type: TicketType.INFRASTRUCTURE,
+                  severity: Severity.MINOR,
+                  location: cust.address,
+                  impact_users: 0,
+                  description: `Customer terminated service on ${date}. Reason: ${reason}.\nPlease retrieve ONU/Modem and accessories.\nContact: ${cust.phone}`,
+                  sla_deadline: new Date(new Date().setDate(new Date().getDate() + 3)).toISOString(), // +3 Days
+                  link_id: cust.id
+              };
+              handleCreateTicket(ticketData);
+              showNotification('Ticket Created', 'Asset retrieval ticket generated for Field Tech.', 'info');
+          }
+      }
   };
 
   // --- SERVICE PLAN HANDLERS ---
@@ -718,6 +758,7 @@ const App: React.FC = () => {
                 <TicketDetail 
                   ticket={selectedTicket} 
                   employees={employees} // Passed employees here
+                  devices={devices} // Pass devices here
                   onBack={() => setCurrentView(View.TICKETS)}
                   onUpdateStatus={handleUpdateStatus}
                   onUpdateTicket={handleUpdateTicket}
@@ -736,6 +777,7 @@ const App: React.FC = () => {
                     onUpdateCustomer={handleUpdateCustomer}
                     onCreateTicket={handleCreateTicket} // Pass create ticket handler
                     onAddDevice={handleAddDevice} // Pass add device handler
+                    onTerminateCustomer={handleTerminateCustomer}
                 />
               )}
               {currentView === View.DETAIL_EMPLOYEE && selectedEmployee && (

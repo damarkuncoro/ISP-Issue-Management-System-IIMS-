@@ -1,9 +1,11 @@
+
 import React, { useState } from 'react';
 import { Customer, UserRole, CustomerStatus, ServicePlan, Invoice, InvoiceStatus, Device, DeviceStatus } from '../types';
-import { ArrowLeft, User, MapPin, Phone, Mail, FileText, Server, Shield, CreditCard, Activity, Edit, Download, CheckCircle, Clock, AlertCircle, Ticket as TicketIcon, Router, Plus } from 'lucide-react';
+import { ArrowLeft, User, MapPin, Phone, Mail, FileText, Server, Shield, CreditCard, Activity, Edit, Download, CheckCircle, Clock, AlertCircle, Ticket as TicketIcon, Router, Plus, UserX } from 'lucide-react';
 import EditCustomerModal from './EditCustomerModal';
 import CreateTicketModal from './CreateTicketModal';
 import AddDeviceModal from './AddDeviceModal';
+import TerminateModal from './TerminateModal';
 
 interface CustomerDetailProps {
   customer: Customer;
@@ -15,6 +17,7 @@ interface CustomerDetailProps {
   onUpdateCustomer: (id: string, data: any) => void;
   onCreateTicket?: (ticketData: any) => void;
   onAddDevice?: (deviceData: any) => void; // New Prop
+  onTerminateCustomer?: (id: string, reason: string, date: string, createTicket: boolean) => void; // New Prop for termination logic
 }
 
 const CustomerDetail: React.FC<CustomerDetailProps> = ({ 
@@ -26,11 +29,13 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
     onBack, 
     onUpdateCustomer,
     onCreateTicket,
-    onAddDevice
+    onAddDevice,
+    onTerminateCustomer
 }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
   const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
+  const [isTerminateModalOpen, setIsTerminateModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'billing'>('profile');
 
   // --- PERMISSION LOGIC ---
@@ -53,6 +58,9 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
   // Device Mgmt Permission
   const canAddDevice = isManager || isNOC || isField || isProvisioning;
 
+  // Termination Permission (Manager & CS Only)
+  const canTerminate = (isManager || isCS) && customer.status !== CustomerStatus.TERMINATED;
+
   // Personal Info Visibility
   const canViewPersonal = isManager || isCS || isSales || isProvisioning || isFinance || isHelpdesk || isField;
 
@@ -68,6 +76,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
       case CustomerStatus.ACTIVE: return 'bg-green-100 text-green-700 border-green-200';
       case CustomerStatus.SUSPENDED: return 'bg-red-100 text-red-700 border-red-200';
       case CustomerStatus.VERIFIED: return 'bg-blue-100 text-blue-700 border-blue-200';
+      case CustomerStatus.TERMINATED: return 'bg-slate-800 text-slate-200 border-slate-600';
       default: return 'bg-slate-100 text-slate-600 border-slate-200';
     }
   };
@@ -103,7 +112,13 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
           onAddDevice(data);
       }
       setIsDeviceModalOpen(false);
-  }
+  };
+
+  const handleTerminationConfirm = (reason: string, date: string, createTicket: boolean) => {
+      if (onTerminateCustomer) {
+          onTerminateCustomer(customer.id, reason, date, createTicket);
+      }
+  };
 
   return (
     <div className="space-y-6 animate-in slide-in-from-right duration-300">
@@ -142,6 +157,15 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
           />
       )}
 
+      {isTerminateModalOpen && onTerminateCustomer && (
+          <TerminateModal
+            isOpen={isTerminateModalOpen}
+            onClose={() => setIsTerminateModalOpen(false)}
+            onConfirm={handleTerminationConfirm}
+            customerName={customer.name}
+          />
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-4">
         <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full transition text-slate-600">
@@ -154,7 +178,22 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
               {customer.status}
             </span>
           </h2>
-          <p className="text-slate-500 font-mono text-sm">{customer.id}</p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 mt-1">
+              <p className="text-slate-500 font-mono text-sm">{customer.id}</p>
+              
+              {canViewPersonal && (
+                  <>
+                    <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                        <Phone size={14} className="text-slate-400" />
+                        <span>{customer.phone}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                        <Mail size={14} className="text-slate-400" />
+                        <span>{customer.email}</span>
+                    </div>
+                  </>
+              )}
+          </div>
         </div>
         
         <div className="flex gap-2">
@@ -405,6 +444,24 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                     )}
                 </div>
             </div>
+
+            {/* DANGER ZONE - TERMINATION */}
+            {canTerminate && (
+                <div className="bg-red-50 p-6 rounded-xl border border-red-200">
+                    <h3 className="text-sm font-bold text-red-800 uppercase tracking-wide mb-2 flex items-center gap-2">
+                        <UserX size={16} /> Danger Zone
+                    </h3>
+                    <p className="text-xs text-red-600 mb-4">
+                        Terminate this customer subscription. This action will schedule a service stop and asset retrieval.
+                    </p>
+                    <button 
+                        onClick={() => setIsTerminateModalOpen(true)}
+                        className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg text-sm shadow-sm transition"
+                    >
+                        Stop Subscription
+                    </button>
+                </div>
+            )}
         </div>
       </div>
       )}

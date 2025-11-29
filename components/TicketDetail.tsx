@@ -1,11 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
-import { Ticket, TicketStatus, Severity, Employee, ActivityLogEntry } from '../types';
+import { Ticket, TicketStatus, Severity, Employee, ActivityLogEntry, Device, TicketType } from '../types';
 import { STATUS_COLORS } from '../constants';
 import { AIAnalysisResult, analyzeTicketWithGemini } from '../services/geminiService';
 import { 
   ArrowLeft, MapPin, Server, Users, Clock, AlertTriangle, 
   CheckCircle, Play, UserPlus, PenTool, Sparkles, MessageSquare,
-  History, FileText, BrainCircuit, Activity, Link as LinkIcon, Send, Wrench
+  History, FileText, BrainCircuit, Activity, Link as LinkIcon, Send, Wrench, XCircle, ArrowLeftRight
 } from 'lucide-react';
 import AssignTicketModal from './AssignTicketModal';
 import ResolveTicketModal from './ResolveTicketModal';
@@ -13,6 +14,7 @@ import ResolveTicketModal from './ResolveTicketModal';
 interface TicketDetailProps {
   ticket: Ticket;
   employees: Employee[]; // Passed from App for assignment
+  devices?: Device[]; // Passed for resolving device names
   onBack: () => void;
   onUpdateStatus: (id: string, newStatus: TicketStatus) => void;
   onUpdateTicket: (id: string, data: Partial<Ticket>) => void;
@@ -23,6 +25,7 @@ interface TicketDetailProps {
 const TicketDetail: React.FC<TicketDetailProps> = ({ 
     ticket, 
     employees, 
+    devices = [],
     onBack, 
     onUpdateStatus, 
     onUpdateTicket,
@@ -157,16 +160,30 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
     return 'bg-blue-500 border-blue-200';
   };
 
+  // Helper to find device name
+  const getDeviceName = (deviceId: string) => {
+      const device = devices.find(d => d.id === deviceId);
+      return device ? `${device.name} (${device.model})` : deviceId;
+  };
+
   const getNextActions = () => {
     switch (ticket.status) {
       case TicketStatus.OPEN:
         return (
-          <button 
-            onClick={() => onUpdateStatus(ticket.id, TicketStatus.INVESTIGATING)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-sm"
-          >
-            <Play size={16} /> Start Investigation
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => onUpdateStatus(ticket.id, TicketStatus.INVESTIGATING)}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-sm"
+            >
+              <Play size={16} /> Start Investigation
+            </button>
+            <button 
+              onClick={() => onUpdateStatus(ticket.id, TicketStatus.CLOSED)}
+              className="flex items-center gap-2 bg-slate-100 text-slate-600 px-4 py-2 rounded-lg hover:bg-slate-200 transition shadow-sm border border-slate-200"
+            >
+              <XCircle size={16} /> False Alarm
+            </button>
+          </div>
         );
       case TicketStatus.INVESTIGATING:
         return (
@@ -187,31 +204,64 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
         );
       case TicketStatus.ASSIGNED:
         return (
-          <button 
-            onClick={() => onUpdateStatus(ticket.id, TicketStatus.FIXING)}
-            className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition shadow-sm"
-          >
-            <PenTool size={16} /> Start Fixing
-          </button>
+          <div className="flex gap-2">
+            <button 
+                onClick={() => onUpdateStatus(ticket.id, TicketStatus.FIXING)}
+                className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition shadow-sm"
+            >
+                <PenTool size={16} /> Start Fixing
+            </button>
+            <button 
+                onClick={() => onUpdateStatus(ticket.id, TicketStatus.INVESTIGATING)}
+                className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition shadow-sm"
+            >
+                <ArrowLeftRight size={16} /> Unassign
+            </button>
+          </div>
         );
       case TicketStatus.FIXING:
         return (
-          <button 
-            onClick={() => setIsResolveModalOpen(true)}
-            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition shadow-sm"
-          >
-            <CheckCircle size={16} /> Mark Resolved
-          </button>
+          <div className="flex gap-2">
+            <button 
+                onClick={() => setIsResolveModalOpen(true)}
+                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition shadow-sm"
+            >
+                <CheckCircle size={16} /> Mark Resolved
+            </button>
+            <button 
+                onClick={() => onUpdateStatus(ticket.id, TicketStatus.INVESTIGATING)}
+                className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition shadow-sm"
+            >
+                <ArrowLeftRight size={16} /> Return to Investigation
+            </button>
+          </div>
         );
       case TicketStatus.RESOLVED:
         return (
-          <button 
-            onClick={() => onUpdateStatus(ticket.id, TicketStatus.CLOSED)}
-            className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 transition shadow-sm"
-          >
-            <CheckCircle size={16} /> Close Ticket
-          </button>
+          <div className="flex gap-2">
+             <button 
+               onClick={() => onUpdateStatus(ticket.id, TicketStatus.FIXING)}
+               className="flex items-center gap-2 bg-amber-100 text-amber-700 border border-amber-200 px-4 py-2 rounded-lg hover:bg-amber-200 transition shadow-sm"
+             >
+               <Wrench size={16} /> Re-open
+             </button>
+             <button 
+               onClick={() => onUpdateStatus(ticket.id, TicketStatus.CLOSED)}
+               className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 transition shadow-sm"
+             >
+               <CheckCircle size={16} /> Close Ticket
+             </button>
+          </div>
         );
+      case TicketStatus.CLOSED:
+         return (
+             <button 
+               onClick={() => onUpdateStatus(ticket.id, TicketStatus.OPEN)}
+               className="flex items-center gap-2 bg-white border border-slate-300 text-slate-600 px-4 py-2 rounded-lg hover:bg-slate-50 transition shadow-sm"
+             >
+               <History size={16} /> Re-activate
+             </button>
+         );
       default:
         return <span className="text-slate-500 italic">No actions available</span>;
     }
@@ -458,18 +508,24 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                     <span className="block text-xs text-slate-500">Device / Link ID</span>
                     <span className="font-medium text-slate-800 break-all">
                        {ticket.device_id ? (
-                           <button onClick={() => onNavigateToDevice && onNavigateToDevice(ticket.device_id!)} className="text-blue-600 hover:underline flex items-center gap-1">
-                               {ticket.device_id} <LinkIcon size={10} />
+                           <button onClick={() => onNavigateToDevice && onNavigateToDevice(ticket.device_id!)} className="text-blue-600 hover:underline flex items-start text-left gap-1 transition">
+                               <span>{getDeviceName(ticket.device_id)}</span> <LinkIcon size={12} className="mt-1" />
                            </button>
                        ) : ticket.link_id ? (
-                           <span className="text-slate-800">{ticket.link_id}</span>
+                           ticket.link_id.startsWith('CID') ? (
+                               <button onClick={() => onNavigateToCustomer && onNavigateToCustomer(ticket.link_id!)} className="text-blue-600 hover:underline flex items-start text-left gap-1 transition">
+                                   <span>{ticket.link_id}</span> <LinkIcon size={12} className="mt-1" />
+                               </button>
+                           ) : (
+                               <span className="text-slate-800">{ticket.link_id}</span>
+                           )
                        ) : (
                            'N/A'
                        )}
                     </span>
                   </div>
                 </li>
-                {ticket.type === 'Customer' && (
+                {(ticket.type === 'Customer' || ticket.type === 'Billing' || (ticket.link_id && ticket.link_id.startsWith('CID'))) && (
                   <li className="flex items-start gap-3">
                      <Users className="text-slate-400 mt-0.5" size={18} />
                      <div>

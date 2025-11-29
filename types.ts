@@ -149,6 +149,10 @@ export interface Customer {
   onu_mac?: string;
   olt_port?: string;
   
+  // Termination Data
+  termination_date?: string;
+  termination_reason?: string;
+
   sales_agent?: string;
   last_updated: string;
 }
