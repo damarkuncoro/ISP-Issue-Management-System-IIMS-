@@ -190,6 +190,11 @@ const App: React.FC = () => {
     }
   };
 
+  const handleUpdateDevice = (id: string, data: any) => {
+    setDevices(prev => prev.map(d => d.id === id ? { ...d, ...data, last_updated: new Date().toISOString() } : d));
+    showNotification('Device Updated', 'Network configuration updated successfully.', 'success');
+  };
+
   const handleValidateDevice = (id: string) => {
     setDevices(prev => prev.map(d => {
         if (d.id === id) {
@@ -244,6 +249,16 @@ const App: React.FC = () => {
         return c;
     }));
     showNotification('Service Activated', 'Customer internet service is now live.', 'success');
+  };
+
+  const handleUpdateCustomer = (id: string, data: any) => {
+    setCustomers(prev => prev.map(c => c.id === id ? { ...c, ...data, last_updated: new Date().toISOString() } : c));
+    
+    if (selectedCustomer && selectedCustomer.id === id) {
+      setSelectedCustomer({ ...selectedCustomer, ...data, last_updated: new Date().toISOString() });
+    }
+    
+    showNotification('Customer Updated', 'Customer data updated successfully.', 'success');
   };
 
   // --- SERVICE PLAN HANDLERS ---
@@ -446,6 +461,7 @@ const App: React.FC = () => {
                     devices={devices}
                     userRole={currentUserRole}
                     onAddDevice={handleAddDevice}
+                    onUpdateDevice={handleUpdateDevice}
                     onValidateDevice={handleValidateDevice}
                 />
               )}
@@ -487,7 +503,9 @@ const App: React.FC = () => {
                 <CustomerDetail
                     customer={selectedCustomer}
                     userRole={currentUserRole}
+                    servicePlans={servicePlans}
                     onBack={() => setCurrentView(View.CUSTOMERS)}
+                    onUpdateCustomer={handleUpdateCustomer}
                 />
               )}
               {currentView === View.DETAIL_EMPLOYEE && selectedEmployee && (

@@ -1,15 +1,19 @@
 
-import React from 'react';
-import { Customer, UserRole, CustomerStatus } from '../types';
-import { ArrowLeft, User, MapPin, Phone, Mail, FileText, Server, Shield, CreditCard, Activity } from 'lucide-react';
+import React, { useState } from 'react';
+import { Customer, UserRole, CustomerStatus, ServicePlan } from '../types';
+import { ArrowLeft, User, MapPin, Phone, Mail, FileText, Server, Shield, CreditCard, Activity, Edit } from 'lucide-react';
+import EditCustomerModal from './EditCustomerModal';
 
 interface CustomerDetailProps {
   customer: Customer;
   userRole: UserRole;
+  servicePlans: ServicePlan[];
   onBack: () => void;
+  onUpdateCustomer: (id: string, data: any) => void;
 }
 
-const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, userRole, onBack }) => {
+const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, userRole, servicePlans, onBack, onUpdateCustomer }) => {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // --- PERMISSION LOGIC ---
   const isManager = userRole === UserRole.MANAGER;
@@ -18,19 +22,15 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, userRole, onB
   const isProvisioning = userRole === UserRole.PROVISIONING;
   const isSales = userRole === UserRole.SALES;
 
-  // Personal Info (Name, Address, Phone, Email, NIK)
-  // Visible to: Manager, CS, Sales (Partial), Provisioning
-  // Obfuscated for: NOC (Privacy)
+  // Edit Permission: Anyone who can see details can usually request an edit, 
+  // but the Modal handles specifically what they can touch.
+  const canOpenEdit = isManager || isCS || isSales || isProvisioning || isNOC;
+
+  // Personal Info Visibility
   const canViewPersonal = isManager || isCS || isSales || isProvisioning;
 
-  // Technical Info (IP, VLAN, PPPoE, MAC, OLT)
-  // Visible to: Manager, NOC, Provisioning, Network
-  // Hidden for: CS, Sales
+  // Technical Info Visibility
   const canViewTechnical = isManager || isNOC || isProvisioning;
-
-  // Billing/Contract Info
-  // Visible to: Manager, Sales, CS
-  const canViewContract = isManager || isSales || isCS;
 
   const renderObfuscated = (text: string) => (
     <span className="font-mono text-slate-400 tracking-widest">••••••••••</span>
@@ -47,6 +47,18 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, userRole, onB
 
   return (
     <div className="space-y-6 animate-in slide-in-from-right duration-300">
+      
+      {isEditModalOpen && (
+        <EditCustomerModal 
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          customer={customer}
+          userRole={userRole}
+          servicePlans={servicePlans}
+          onUpdate={onUpdateCustomer}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-4">
         <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full transition text-slate-600">
@@ -61,6 +73,15 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, userRole, onB
           </h2>
           <p className="text-slate-500 font-mono text-sm">{customer.id}</p>
         </div>
+        
+        {canOpenEdit && (
+            <button 
+                onClick={() => setIsEditModalOpen(true)}
+                className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg flex items-center gap-2 transition shadow-sm font-medium"
+            >
+                <Edit size={16} /> Edit Customer
+            </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -247,8 +247,8 @@ const HelpdeskDashboard: React.FC<HelpdeskDashboardProps> = ({ tickets, onCreate
 
           <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
             <h4 className="font-bold text-slate-700 mb-4">Complaint Categories</h4>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-48 w-full min-w-0">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <PieChart>
                   <Pie data={typeData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} dataKey="value">
                     {typeData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}

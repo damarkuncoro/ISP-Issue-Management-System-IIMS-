@@ -146,8 +146,8 @@ const Dashboard: React.FC<DashboardProps> = ({ tickets, userRole = UserRole.NOC,
          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
              <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <h4 className="text-lg font-semibold text-slate-800 mb-4">Real-time Traffic (Core Network)</h4>
-                <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
+                <div className="h-80 w-full min-w-0">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <BarChart data={trafficData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                         <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
@@ -201,8 +201,8 @@ const Dashboard: React.FC<DashboardProps> = ({ tickets, userRole = UserRole.NOC,
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                  <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <h4 className="text-lg font-semibold text-slate-800 mb-4">SLA Trend (Last 5 Days)</h4>
-                    <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-64 w-full min-w-0">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                         <LineChart data={slaTrendData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                             <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
@@ -216,8 +216,8 @@ const Dashboard: React.FC<DashboardProps> = ({ tickets, userRole = UserRole.NOC,
 
                  <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <h4 className="text-lg font-semibold text-slate-800 mb-4">Ticket Volume Distribution</h4>
-                     <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
+                     <div className="h-64 w-full min-w-0">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                             <BarChart data={typeData} layout="vertical">
                                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                                 <XAxis type="number" hide />
@@ -304,8 +304,8 @@ const Dashboard: React.FC<DashboardProps> = ({ tickets, userRole = UserRole.NOC,
             {/* Issues by Type Pie Chart */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
             <h4 className="text-lg font-semibold text-slate-800 mb-4">Issues by Type</h4>
-            <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
+            <div className="h-64 w-full min-w-0">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <PieChart>
                     <Pie
                     data={typeData}
@@ -337,8 +337,8 @@ const Dashboard: React.FC<DashboardProps> = ({ tickets, userRole = UserRole.NOC,
             {/* Traffic Chart */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-2">
             <h4 className="text-lg font-semibold text-slate-800 mb-4">Backbone Traffic (Gbps)</h4>
-            <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
+            <div className="h-64 w-full min-w-0">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={trafficData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />

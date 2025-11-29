@@ -1,19 +1,21 @@
 
 import React, { useState } from 'react';
 import { Device, DeviceStatus, UserRole } from '../types';
-import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash } from 'lucide-react';
+import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit } from 'lucide-react';
 import AddDeviceModal from './AddDeviceModal';
 
 interface DeviceInventoryProps {
   devices: Device[];
   userRole: UserRole;
   onAddDevice: (device: any) => void;
+  onUpdateDevice: (id: string, device: any) => void;
   onValidateDevice: (id: string) => void;
 }
 
-const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, onAddDevice, onValidateDevice }) => {
+const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, onAddDevice, onUpdateDevice, onValidateDevice }) => {
   const [filterText, setFilterText] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingDevice, setEditingDevice] = useState<Device | null>(null);
 
   const filteredDevices = devices.filter(d => 
     d.name.toLowerCase().includes(filterText.toLowerCase()) ||
@@ -22,6 +24,22 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, on
   );
 
   const canValidate = userRole === UserRole.NETWORK || userRole === UserRole.INVENTORY_ADMIN || userRole === UserRole.NOC;
+  
+  // Who can edit?
+  // Network/NOC/Admin: Full Edit
+  // Field: Partial Edit (Location)
+  // CS/Sales: No Edit
+  const canEdit = userRole === UserRole.NETWORK || userRole === UserRole.INVENTORY_ADMIN || userRole === UserRole.NOC || userRole === UserRole.MANAGER || userRole === UserRole.FIELD;
+
+  const handleOpenAdd = () => {
+    setEditingDevice(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (device: Device) => {
+    setEditingDevice(device);
+    setIsModalOpen(true);
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -29,7 +47,9 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, on
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         onSubmit={onAddDevice}
+        onUpdate={onUpdateDevice}
         userRole={userRole}
+        device={editingDevice}
       />
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -37,12 +57,15 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, on
             <h2 className="text-2xl font-bold text-slate-800">Network Inventory</h2>
             <p className="text-slate-500">Manage routers, switches, OLTs, and infrastructure assets.</p>
          </div>
-         <button 
-            onClick={() => setIsModalOpen(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 transition shadow-sm"
-         >
-            <Plus size={20} /> Register Device
-         </button>
+         {/* Only Technical roles can Add Devices */}
+         {(canEdit || canValidate) && (
+             <button 
+                onClick={handleOpenAdd}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 transition shadow-sm"
+             >
+                <Plus size={20} /> Register Device
+             </button>
+         )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -118,19 +141,26 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, on
                                  )}
                              </td>
                              <td className="px-6 py-4">
-                                 {device.status === DeviceStatus.PENDING && canValidate && (
-                                     <button 
-                                        onClick={() => onValidateDevice(device.id)}
-                                        className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 rounded shadow-sm flex items-center gap-1 transition"
-                                     >
-                                         <CheckCircle size={12} /> Validate
-                                     </button>
-                                 )}
-                                 {device.status === DeviceStatus.ACTIVE && (
-                                     <button className="text-slate-400 hover:text-blue-600 transition">
-                                         <Hash size={18} />
-                                     </button>
-                                 )}
+                                 <div className="flex gap-2">
+                                     {device.status === DeviceStatus.PENDING && canValidate && (
+                                         <button 
+                                            onClick={() => onValidateDevice(device.id)}
+                                            className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 rounded shadow-sm flex items-center gap-1 transition"
+                                         >
+                                             <CheckCircle size={12} /> Validate
+                                         </button>
+                                     )}
+                                     
+                                     {canEdit && (
+                                         <button 
+                                            onClick={() => handleOpenEdit(device)}
+                                            className="text-slate-500 hover:text-blue-600 bg-slate-100 p-1.5 rounded transition"
+                                            title="Edit Device"
+                                         >
+                                            <Edit size={16} />
+                                         </button>
+                                     )}
+                                 </div>
                              </td>
                          </tr>
                      ))}

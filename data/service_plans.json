@@ -1,0 +1,44 @@
+[
+  {
+    "id": "PLAN-RES-20",
+    "name": "Home Fiber 20 Mbps",
+    "speed_mbps": 20,
+    "price": 250000,
+    "sla_percentage": 97.0,
+    "fup_quota_gb": 500,
+    "category": "Residential",
+    "description": "Best for small families and browsing.",
+    "active": true
+  },
+  {
+    "id": "PLAN-RES-50",
+    "name": "Home Fiber 50 Mbps",
+    "speed_mbps": 50,
+    "price": 350000,
+    "sla_percentage": 97.0,
+    "fup_quota_gb": 1200,
+    "category": "Residential",
+    "description": "Perfect for streaming 4K and gaming.",
+    "active": true
+  },
+  {
+    "id": "PLAN-SME-100",
+    "name": "SME 100 Mbps",
+    "speed_mbps": 100,
+    "price": 750000,
+    "sla_percentage": 98.5,
+    "category": "SME",
+    "description": "High speed connection for small businesses.",
+    "active": true
+  },
+  {
+    "id": "PLAN-DED-100",
+    "name": "Dedicated 100 Mbps",
+    "speed_mbps": 100,
+    "price": 3500000,
+    "sla_percentage": 99.9,
+    "category": "Dedicated",
+    "description": "1:1 Ratio, Direct Backbone Connection, Priority Support.",
+    "active": true
+  }
+]
