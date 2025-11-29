@@ -8,6 +8,7 @@ import NotificationToast, { Notification } from './components/NotificationToast'
 import NotificationPanel from './components/NotificationPanel';
 import GlobalSearch from './components/GlobalSearch';
 import DeviceInventory from './components/DeviceInventory';
+import DeviceDetail from './components/DeviceDetail';
 import CustomerManagement from './components/CustomerManagement';
 import CustomerDetail from './components/CustomerDetail';
 import ServicePlanManager from './components/ServicePlanManager';
@@ -38,6 +39,7 @@ enum View {
   DETAIL_TICKET = 'detail_ticket',
   DETAIL_CUSTOMER = 'detail_customer',
   DETAIL_EMPLOYEE = 'detail_employee',
+  DETAIL_DEVICE = 'detail_device',
   SETTINGS = 'settings'
 }
 
@@ -61,6 +63,7 @@ const App: React.FC = () => {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   
   const [deviceFilter, setDeviceFilter] = useState<string>('');
 
@@ -245,6 +248,11 @@ const App: React.FC = () => {
 
   const handleUpdateDevice = (id: string, data: any) => {
     setDevices(prev => prev.map(d => d.id === id ? { ...d, ...data, last_updated: new Date().toISOString() } : d));
+    
+    if (selectedDevice && selectedDevice.id === id) {
+        setSelectedDevice(prev => prev ? { ...prev, ...data } : null);
+    }
+
     showNotification('Device Updated', 'Network configuration updated successfully.', 'success');
   };
 
@@ -269,8 +277,19 @@ const App: React.FC = () => {
   };
   
   const handleNavigateToDevice = (deviceId: string) => {
-      setDeviceFilter(deviceId); // Set filter
-      setCurrentView(View.DEVICES);
+      const device = devices.find(d => d.id === deviceId);
+      if (device) {
+          setSelectedDevice(device);
+          setCurrentView(View.DETAIL_DEVICE);
+      } else {
+          setDeviceFilter(deviceId); // Fallback to list filter if exact ID match fails
+          setCurrentView(View.DEVICES);
+      }
+  };
+
+  const handleSelectDevice = (device: Device) => {
+      setSelectedDevice(device);
+      setCurrentView(View.DETAIL_DEVICE);
   };
 
   // --- CUSTOMER HANDLERS ---
@@ -434,6 +453,20 @@ const App: React.FC = () => {
     showNotification('Payment Recorded', `Invoice ${id} marked as Paid.`, 'success');
   };
 
+  const handleCreateInvoice = (invoiceData: any) => {
+      const newId = `INV-2025${new Date().getMonth() + 1}-${Math.floor(Math.random() * 1000)}`;
+      const newInvoice: Invoice = {
+          id: newId,
+          ...invoiceData
+      };
+      setInvoices([newInvoice, ...invoices]);
+      showNotification('Invoice Generated', `Invoice ${newId} created for ${formatCurrency(newInvoice.amount)}.`, 'success');
+  };
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumSignificantDigits: 3 }).format(val);
+  };
+
   // --- MAINTENANCE HANDLERS ---
   const handleAddMaintenance = (data: any) => {
       const newId = `MT-202511-${String(maintenanceList.length + 1).padStart(3, '0')}`;
@@ -474,7 +507,7 @@ const App: React.FC = () => {
     <button 
       onClick={() => { setCurrentView(view); setIsSidebarOpen(false); }}
       className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-        currentView === view || (view === View.TICKETS && currentView === View.DETAIL_TICKET) || (view === View.CUSTOMERS && currentView === View.DETAIL_CUSTOMER) || (view === View.EMPLOYEES && currentView === View.DETAIL_EMPLOYEE)
+        currentView === view || (view === View.TICKETS && currentView === View.DETAIL_TICKET) || (view === View.CUSTOMERS && currentView === View.DETAIL_CUSTOMER) || (view === View.EMPLOYEES && currentView === View.DETAIL_EMPLOYEE) || (view === View.DEVICES && currentView === View.DETAIL_DEVICE)
           ? 'bg-blue-600 text-white shadow-md' 
           : 'text-slate-400 hover:bg-slate-800 hover:text-white'
       }`}
@@ -535,7 +568,7 @@ const App: React.FC = () => {
           <nav className="flex-1 p-4 space-y-2">
             <NavItem view={View.DASHBOARD} icon={<LayoutDashboard size={20} />} label="Dashboard" />
             <NavItem view={View.TICKETS} icon={<TicketIcon size={20} />} label="Issue Tickets" />
-            <NavItem view={View.DEVICES} icon={<Server size={20} />} label="Inventory / Assets" />
+            <NavItem view={View.DEVICES} icon={<Server size={20} />} label="Inventory & Topology" />
             <NavItem view={View.CUSTOMERS} icon={<Users size={20} />} label="Customers" />
             {canViewMaintenance && (
                 <NavItem view={View.MAINTENANCE} icon={<Calendar size={20} />} label="Maintenance" />
@@ -606,7 +639,7 @@ const App: React.FC = () => {
             <h2 className="text-lg font-semibold text-slate-800 hidden md:block">
               {currentView === View.DASHBOARD && `${currentUserRole} Dashboard`}
               {(currentView === View.TICKETS || currentView === View.DETAIL_TICKET) && 'Ticket Management'}
-              {currentView === View.DEVICES && 'Device Inventory & Assets'}
+              {(currentView === View.DEVICES || currentView === View.DETAIL_DEVICE) && 'Device Inventory & Assets'}
               {(currentView === View.CUSTOMERS || currentView === View.DETAIL_CUSTOMER) && 'Customer Relationship'}
               {currentView === View.MAINTENANCE && 'Planned Maintenance'}
               {currentView === View.REPORTS && 'System Reports & Analytics'}
@@ -692,11 +725,12 @@ const App: React.FC = () => {
                 <DeviceInventory
                     devices={devices}
                     userRole={currentUserRole}
-                    customers={customers} // Pass customers list
+                    customers={customers} 
                     onAddDevice={handleAddDevice}
                     onUpdateDevice={handleUpdateDevice}
                     onValidateDevice={handleValidateDevice}
-                    preSetFilter={deviceFilter} // Pass filter from global search
+                    onSelectDevice={handleSelectDevice}
+                    preSetFilter={deviceFilter} 
                 />
               )}
               {currentView === View.CUSTOMERS && (
@@ -736,6 +770,7 @@ const App: React.FC = () => {
                     customers={customers}
                     userRole={currentUserRole}
                     onUpdateStatus={handleInvoiceStatusUpdate}
+                    onCreateInvoice={handleCreateInvoice}
                 />
               )}
               {currentView === View.SERVICE_PLANS && (
@@ -757,8 +792,8 @@ const App: React.FC = () => {
               {currentView === View.DETAIL_TICKET && selectedTicket && (
                 <TicketDetail 
                   ticket={selectedTicket} 
-                  employees={employees} // Passed employees here
-                  devices={devices} // Pass devices here
+                  employees={employees} 
+                  devices={devices} 
                   onBack={() => setCurrentView(View.TICKETS)}
                   onUpdateStatus={handleUpdateStatus}
                   onUpdateTicket={handleUpdateTicket}
@@ -772,11 +807,11 @@ const App: React.FC = () => {
                     userRole={currentUserRole}
                     servicePlans={servicePlans}
                     invoices={invoices}
-                    devices={devices} // Pass devices for ticket creation
+                    devices={devices} 
                     onBack={() => setCurrentView(View.CUSTOMERS)}
                     onUpdateCustomer={handleUpdateCustomer}
-                    onCreateTicket={handleCreateTicket} // Pass create ticket handler
-                    onAddDevice={handleAddDevice} // Pass add device handler
+                    onCreateTicket={handleCreateTicket} 
+                    onAddDevice={handleAddDevice} 
                     onTerminateCustomer={handleTerminateCustomer}
                 />
               )}
@@ -786,6 +821,19 @@ const App: React.FC = () => {
                     userRole={currentUserRole}
                     onUpdateEmployee={handleUpdateEmployee}
                     onBack={() => setCurrentView(View.EMPLOYEES)}
+                />
+              )}
+              {currentView === View.DETAIL_DEVICE && selectedDevice && (
+                <DeviceDetail
+                    device={selectedDevice}
+                    allDevices={devices}
+                    tickets={tickets}
+                    customers={customers}
+                    userRole={currentUserRole}
+                    onBack={() => setCurrentView(View.DEVICES)}
+                    onUpdateDevice={handleUpdateDevice}
+                    onNavigateToTicket={handleTicketSelect}
+                    onNavigateToDevice={handleNavigateToDevice}
                 />
               )}
               {currentView === View.SETTINGS && (

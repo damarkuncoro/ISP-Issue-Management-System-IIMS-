@@ -87,22 +87,27 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
 
   const handleAssignEmployee = (employee: Employee) => {
       const timestamp = new Date().toISOString();
+      
+      // Create a specific log entry for the assignment
       const newLogEntry: ActivityLogEntry = {
           id: `log-assign-${Date.now()}`,
           action: 'Ticket Assigned',
-          description: `Ticket assigned to ${employee.full_name} (${employee.position}).\nStatus updated to ${TicketStatus.ASSIGNED}.`,
+          description: `Ticket assigned to ${employee.full_name} (${employee.position}).`,
           timestamp: timestamp,
-          user: 'NOC Engineer'
+          user: 'NOC Engineer' // In a real app, this would be the logged-in user
       };
 
       const updatedLogs = [newLogEntry, ...(ticket.activityLog || [])];
 
-      // Update ticket with new assignee and set status to ASSIGNED
+      // Update ticket with new assignee, set status to ASSIGNED, and save the log
       onUpdateTicket(ticket.id, {
           assignee: employee.full_name,
           status: TicketStatus.ASSIGNED,
           activityLog: updatedLogs
       });
+      
+      // Optional: switch to history tab to show the new event
+      // setActiveTab('history'); 
   };
 
   const handleResolveTicket = (data: { rootCause: string; actionTaken: string; resolutionCode: string; notes: string }) => {

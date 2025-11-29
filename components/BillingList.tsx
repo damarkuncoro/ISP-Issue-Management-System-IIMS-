@@ -1,17 +1,21 @@
+
 import React, { useState } from 'react';
 import { Invoice, InvoiceStatus, UserRole, Customer } from '../types';
-import { Search, DollarSign, AlertCircle, CheckCircle, Clock, FileText, Download } from 'lucide-react';
+import { Search, DollarSign, AlertCircle, CheckCircle, Clock, FileText, Download, Plus } from 'lucide-react';
+import GenerateInvoiceModal from './GenerateInvoiceModal';
 
 interface BillingListProps {
   invoices: Invoice[];
   customers: Customer[];
   userRole: UserRole;
   onUpdateStatus?: (id: string, status: InvoiceStatus) => void;
+  onCreateInvoice?: (data: any) => void;
 }
 
-const BillingList: React.FC<BillingListProps> = ({ invoices, customers, userRole, onUpdateStatus }) => {
+const BillingList: React.FC<BillingListProps> = ({ invoices, customers, userRole, onUpdateStatus, onCreateInvoice }) => {
   const [filterText, setFilterText] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
+  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
 
   const filteredInvoices = invoices.filter(inv => {
     const cust = customers.find(c => c.id === inv.customer_id);
@@ -50,12 +54,30 @@ const BillingList: React.FC<BillingListProps> = ({ invoices, customers, userRole
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
+       
+       {isGenerateModalOpen && onCreateInvoice && (
+           <GenerateInvoiceModal 
+                isOpen={isGenerateModalOpen}
+                onClose={() => setIsGenerateModalOpen(false)}
+                onSubmit={onCreateInvoice}
+                customers={customers}
+           />
+       )}
+
        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
          <div>
             <h2 className="text-2xl font-bold text-slate-800">Billing & Invoicing</h2>
             <p className="text-slate-500">Manage customer payments, overdue accounts, and revenue.</p>
          </div>
          <div className="flex gap-4">
+             {canManageBilling && (
+                 <button 
+                    onClick={() => setIsGenerateModalOpen(true)}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition shadow-sm font-bold"
+                 >
+                    <Plus size={20} /> Create Invoice
+                 </button>
+             )}
              <div className="bg-red-50 px-4 py-2 rounded-lg border border-red-100">
                 <p className="text-xs text-red-500 font-bold uppercase">Overdue Amount</p>
                 <p className="text-lg font-bold text-red-700">{formatCurrency(totalOverdue)}</p>

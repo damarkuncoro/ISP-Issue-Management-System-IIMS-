@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { Device, DeviceStatus, UserRole, Customer } from '../types';
-import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User, Network } from 'lucide-react';
+import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User, Network, Eye } from 'lucide-react';
 import AddDeviceModal from './AddDeviceModal';
 
 interface DeviceInventoryProps {
@@ -10,10 +11,11 @@ interface DeviceInventoryProps {
   onAddDevice: (device: any) => void;
   onUpdateDevice: (id: string, device: any) => void;
   onValidateDevice: (id: string) => void;
+  onSelectDevice?: (device: Device) => void; // New Prop for viewing details
   preSetFilter?: string; // New Prop for Global Search navigation
 }
 
-const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, customers = [], onAddDevice, onUpdateDevice, onValidateDevice, preSetFilter }) => {
+const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, customers = [], onAddDevice, onUpdateDevice, onValidateDevice, onSelectDevice, preSetFilter }) => {
   const [filterText, setFilterText] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
@@ -44,13 +46,15 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
     setIsModalOpen(true);
   };
 
-  const handleOpenEdit = (device: Device) => {
+  const handleOpenEdit = (e: React.MouseEvent, device: Device) => {
+    e.stopPropagation();
     setEditingDevice(device);
     setIsModalOpen(true);
   };
 
   // When validating, we open the modal in Edit mode so NOC can fill IP Address
-  const handleValidateClick = (device: Device) => {
+  const handleValidateClick = (e: React.MouseEvent, device: Device) => {
+      e.stopPropagation();
       setEditingDevice(device);
       setIsModalOpen(true);
   };
@@ -105,7 +109,7 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
              <button 
                 onClick={handleOpenAdd}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 transition shadow-sm"
-             >
+            >
                 <Plus size={20} /> Register Device
              </button>
          )}
@@ -147,7 +151,11 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
                  </thead>
                  <tbody className="divide-y divide-slate-100">
                      {filteredDevices.map(device => (
-                         <tr key={device.id} className="hover:bg-slate-50">
+                         <tr 
+                            key={device.id} 
+                            className="hover:bg-slate-50 cursor-pointer"
+                            onClick={() => onSelectDevice && onSelectDevice(device)}
+                         >
                              <td className="px-6 py-4">
                                  <div className="font-bold text-slate-800">{device.name}</div>
                                  <div className="text-xs text-slate-500 font-mono">SN: {device.serial_number}</div>
@@ -204,9 +212,18 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
                              </td>
                              <td className="px-6 py-4">
                                  <div className="flex gap-2">
+                                     {/* View Detail Button */}
+                                     <button 
+                                        onClick={(e) => { e.stopPropagation(); onSelectDevice && onSelectDevice(device); }}
+                                        className="text-slate-500 hover:text-blue-600 bg-slate-100 p-1.5 rounded transition"
+                                        title="View Details"
+                                     >
+                                        <Eye size={16} />
+                                     </button>
+
                                      {device.status === DeviceStatus.PENDING && canValidate && (
                                          <button 
-                                            onClick={() => handleValidateClick(device)}
+                                            onClick={(e) => handleValidateClick(e, device)}
                                             className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 rounded shadow-sm flex items-center gap-1 transition"
                                          >
                                              <CheckCircle size={12} /> Review
@@ -215,7 +232,7 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
                                      
                                      {canEdit && (
                                          <button 
-                                            onClick={() => handleOpenEdit(device)}
+                                            onClick={(e) => handleOpenEdit(e, device)}
                                             className="text-slate-500 hover:text-blue-600 bg-slate-100 p-1.5 rounded transition"
                                             title="Edit Device"
                                          >
