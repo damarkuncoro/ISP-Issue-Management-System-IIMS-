@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DeviceType, DeviceStatus, UserRole, Device, Customer } from '../types';
-import { X, Save, Server, Shield, Camera, FileCheck, AlertTriangle, CheckCircle, Zap, Info, User } from 'lucide-react';
+import { X, Save, Server, Shield, Camera, FileCheck, AlertTriangle, CheckCircle, Zap, Info, User, Network } from 'lucide-react';
 
 interface AddDeviceModalProps {
   isOpen: boolean;
@@ -10,6 +10,7 @@ interface AddDeviceModalProps {
   userRole: UserRole;
   device?: Device | null; // If provided, we are in Edit Mode
   customers?: Customer[]; // List of customers for selection
+  allDevices?: Device[]; // List of all devices for Uplink selection
   preSelectedCustomerId?: string; // Auto select if adding from Customer Detail
 }
 
@@ -28,7 +29,7 @@ const DEVICE_CATALOG: Record<string, { brand: string; wifi: 'Single' | 'Dual' | 
   'HUAWEI HG8240': { brand: 'Huawei', wifi: 'Single', max_speed: 1000, type: 'Bridge' },
 };
 
-const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubmit, onUpdate, userRole, device, customers = [], preSelectedCustomerId }) => {
+const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubmit, onUpdate, userRole, device, customers = [], allDevices = [], preSelectedCustomerId }) => {
   const [formData, setFormData] = useState({
     name: '',
     type: DeviceType.ONU, // Default to ONU as it's the most common install
@@ -39,6 +40,7 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubm
     location: '',
     installation_photo: '',
     customer_id: '',
+    uplink_device_id: '',
   });
 
   // --- INSTALLATION CONTEXT (Simulating Work Order Data) ---
@@ -65,6 +67,7 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubm
             location: device.location,
             installation_photo: device.installation_photo || '',
             customer_id: device.customer_id || '',
+            uplink_device_id: device.uplink_device_id || '',
         });
     } else {
         // Reset for Add Mode
@@ -78,6 +81,7 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubm
             location: '',
             installation_photo: '',
             customer_id: preSelectedCustomerId || '',
+            uplink_device_id: '',
         });
         
         // Auto-fill location if customer is selected
@@ -174,6 +178,12 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubm
     return rec;
   };
 
+  // Filter potential uplink devices (Exclude self)
+  const potentialUplinks = allDevices.filter(d => 
+    d.id !== device?.id && 
+    (d.type === DeviceType.OLT || d.type === DeviceType.SWITCH || d.type === DeviceType.ROUTER)
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
@@ -249,22 +259,41 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubm
             </div>
           )}
 
-          {/* CUSTOMER ASSIGNMENT */}
-          <div>
-             <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
-                <User size={14} /> Owner / Customer (Optional)
-             </label>
-             <select 
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-slate-100"
-                value={formData.customer_id}
-                onChange={e => setFormData({...formData, customer_id: e.target.value})}
-                disabled={!!preSelectedCustomerId} // Lock if adding from customer page
-             >
-                <option value="">-- No Customer Assigned (Backbone) --</option>
-                {customers.map(c => (
-                    <option key={c.id} value={c.id}>{c.name} ({c.id})</option>
-                ))}
-             </select>
+          {/* CUSTOMER & UPLINK */}
+          <div className="grid grid-cols-1 gap-4">
+             <div>
+                 <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
+                    <User size={14} /> Owner / Customer (Optional)
+                 </label>
+                 <select 
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-slate-100"
+                    value={formData.customer_id}
+                    onChange={e => setFormData({...formData, customer_id: e.target.value})}
+                    disabled={!!preSelectedCustomerId} // Lock if adding from customer page
+                 >
+                    <option value="">-- No Customer Assigned (Backbone) --</option>
+                    {customers.map(c => (
+                        <option key={c.id} value={c.id}>{c.name} ({c.id})</option>
+                    ))}
+                 </select>
+             </div>
+             
+             {/* UPLINK SELECTION (TOPOLOGY) */}
+             <div>
+                 <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
+                    <Network size={14} className="text-purple-600" /> Uplink Device (Parent)
+                 </label>
+                 <select 
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-slate-100"
+                    value={formData.uplink_device_id}
+                    onChange={e => setFormData({...formData, uplink_device_id: e.target.value})}
+                 >
+                    <option value="">-- No Uplink / Root Device --</option>
+                    {potentialUplinks.map(d => (
+                        <option key={d.id} value={d.id}>{d.name} ({d.ip_address}) - {d.type}</option>
+                    ))}
+                 </select>
+             </div>
           </div>
 
           <div>

@@ -135,7 +135,14 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                    <select 
                      className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-500"
                      value={formData.package_name || ''}
-                     onChange={e => setFormData({...formData, package_name: e.target.value})}
+                     onChange={e => {
+                        const selectedPlan = servicePlans.find(p => p.name === e.target.value);
+                        setFormData({
+                            ...formData, 
+                            package_name: e.target.value,
+                            service_plan_id: selectedPlan ? selectedPlan.id : formData.service_plan_id
+                        });
+                     }}
                      disabled={!canEditBilling}
                    >
                      {servicePlans.map(plan => (

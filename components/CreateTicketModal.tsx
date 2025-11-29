@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
-import { TicketType, Severity, Customer, Device } from '../types';
-import { X, Save, Search, User, Server, AlertTriangle } from 'lucide-react';
+import { TicketType, Severity, Customer, Device, Invoice, Maintenance } from '../types';
+import { X, Save, Search, User, Server, AlertTriangle, FileText, Wrench } from 'lucide-react';
 
 interface CreateTicketModalProps {
   isOpen: boolean;
@@ -9,10 +8,21 @@ interface CreateTicketModalProps {
   onSubmit: (ticketData: any) => void;
   customers: Customer[];
   devices: Device[];
-  preSelectedCustomer?: Customer; // New optional prop
+  invoices?: Invoice[]; // Relational Data
+  maintenance?: Maintenance[]; // Relational Data
+  preSelectedCustomer?: Customer;
 }
 
-const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, onSubmit, customers, devices, preSelectedCustomer }) => {
+const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onSubmit, 
+  customers, 
+  devices, 
+  invoices = [], 
+  maintenance = [],
+  preSelectedCustomer 
+}) => {
   const [formData, setFormData] = useState({
     title: '',
     type: TicketType.NETWORK,
@@ -22,7 +32,9 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
     description: '',
     sla_deadline: '',
     link_id: '',
-    device_id: ''
+    device_id: '',
+    related_invoice_id: '',
+    related_maintenance_id: ''
   });
 
   // Smart Search States
@@ -96,12 +108,24 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
         description: '',
         sla_deadline: '',
         link_id: '',
-        device_id: ''
+        device_id: '',
+        related_invoice_id: '',
+        related_maintenance_id: ''
     });
   };
 
   const filteredCustomers = searchTerm ? customers.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.id.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 3) : [];
   const filteredDevices = searchTerm ? devices.filter(d => d.name.toLowerCase().includes(searchTerm.toLowerCase()) || d.ip_address.includes(searchTerm)).slice(0, 3) : [];
+
+  // Logic for Relational Dropdowns
+  const showInvoiceSelect = (formData.type === TicketType.BILLING || formData.type === TicketType.CUSTOMER) && formData.link_id;
+  const showMaintenanceSelect = formData.type === TicketType.INFRASTRUCTURE || formData.type === TicketType.NETWORK;
+
+  // Filter invoices for selected customer
+  const relatedInvoices = showInvoiceSelect ? invoices.filter(i => i.customer_id === formData.link_id) : [];
+  
+  // Active maintenance
+  const activeMaintenance = maintenance.filter(m => m.status !== 'Completed' && m.status !== 'Cancelled');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -208,6 +232,47 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
               </select>
             </div>
           </div>
+
+          {/* DYNAMIC RELATIONSHIP FIELDS */}
+          {showInvoiceSelect && relatedInvoices.length > 0 && (
+             <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                 <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center gap-1">
+                    <FileText size={12} /> Related Invoice
+                 </label>
+                 <select 
+                    className="w-full text-sm p-2 border rounded"
+                    value={formData.related_invoice_id}
+                    onChange={e => setFormData({...formData, related_invoice_id: e.target.value})}
+                 >
+                    <option value="">-- No Specific Invoice --</option>
+                    {relatedInvoices.map(inv => (
+                        <option key={inv.id} value={inv.id}>
+                            {inv.id} ({inv.status} - {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(inv.amount)})
+                        </option>
+                    ))}
+                 </select>
+             </div>
+          )}
+
+          {showMaintenanceSelect && activeMaintenance.length > 0 && (
+             <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                 <label className="block text-xs font-bold text-yellow-700 mb-1 flex items-center gap-1">
+                    <Wrench size={12} /> Link to Active Maintenance
+                 </label>
+                 <select 
+                    className="w-full text-sm p-2 border border-yellow-300 rounded bg-white text-slate-700"
+                    value={formData.related_maintenance_id}
+                    onChange={e => setFormData({...formData, related_maintenance_id: e.target.value})}
+                 >
+                    <option value="">-- Not Related to Maintenance --</option>
+                    {activeMaintenance.map(m => (
+                        <option key={m.id} value={m.id}>
+                            {m.title} ({m.status})
+                        </option>
+                    ))}
+                 </select>
+             </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
              <div>

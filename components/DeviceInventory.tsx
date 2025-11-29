@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Device, DeviceStatus, UserRole, Customer } from '../types';
-import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User } from 'lucide-react';
+import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User, Network } from 'lucide-react';
 import AddDeviceModal from './AddDeviceModal';
 
 interface DeviceInventoryProps {
@@ -10,12 +10,19 @@ interface DeviceInventoryProps {
   onAddDevice: (device: any) => void;
   onUpdateDevice: (id: string, device: any) => void;
   onValidateDevice: (id: string) => void;
+  preSetFilter?: string; // New Prop for Global Search navigation
 }
 
-const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, customers = [], onAddDevice, onUpdateDevice, onValidateDevice }) => {
+const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, customers = [], onAddDevice, onUpdateDevice, onValidateDevice, preSetFilter }) => {
   const [filterText, setFilterText] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
+
+  useEffect(() => {
+    if (preSetFilter) {
+        setFilterText(preSetFilter);
+    }
+  }, [preSetFilter]);
 
   const filteredDevices = devices.filter(d => 
     d.name.toLowerCase().includes(filterText.toLowerCase()) ||
@@ -69,6 +76,12 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
       return c ? c.name : custId;
   };
 
+  const getUplinkName = (uplinkId?: string) => {
+      if (!uplinkId) return null;
+      const d = devices.find(x => x.id === uplinkId);
+      return d ? d.name : uplinkId;
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <AddDeviceModal 
@@ -79,6 +92,7 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
         userRole={userRole}
         device={editingDevice}
         customers={customers}
+        allDevices={devices} // Pass all devices for uplink selection
       />
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -124,7 +138,7 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
                  <thead className="bg-slate-50 text-slate-600 uppercase tracking-wider text-xs font-semibold">
                      <tr>
                          <th className="px-6 py-4">Device Info</th>
-                         <th className="px-6 py-4">Type & Model</th>
+                         <th className="px-6 py-4">Type & Uplink</th>
                          <th className="px-6 py-4">Network Details</th>
                          <th className="px-6 py-4">Location & Owner</th>
                          <th className="px-6 py-4">Status</th>
@@ -144,11 +158,16 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
                                  )}
                              </td>
                              <td className="px-6 py-4">
-                                 <div className="flex items-center gap-2">
+                                 <div className="flex items-center gap-2 mb-1">
                                      <Server size={14} className="text-slate-400" />
                                      <span className="font-medium text-slate-700">{device.type}</span>
                                  </div>
-                                 <div className="text-xs text-slate-500">{device.model}</div>
+                                 {device.uplink_device_id && (
+                                     <div className="flex items-center gap-1.5 text-[10px] text-slate-500 bg-purple-50 px-1.5 py-0.5 rounded w-fit">
+                                         <Network size={10} className="text-purple-500"/>
+                                         Uplink: {getUplinkName(device.uplink_device_id)}
+                                     </div>
+                                 )}
                              </td>
                              <td className="px-6 py-4 font-mono text-xs">
                                  {device.ip_address ? (

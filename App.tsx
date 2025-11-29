@@ -61,6 +61,8 @@ const App: React.FC = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   
+  const [deviceFilter, setDeviceFilter] = useState<string>('');
+
   const [aiSummary, setAiSummary] = useState<string>('');
   
   // Notification State
@@ -266,12 +268,8 @@ const App: React.FC = () => {
   };
   
   const handleNavigateToDevice = (deviceId: string) => {
+      setDeviceFilter(deviceId); // Set filter
       setCurrentView(View.DEVICES);
-      // In a real app we would scroll to or filter for the device. 
-      // For now, we assume the user will search for it (global search handles this better now).
-      
-      // OPTIONAL: If it's an exact search (passed from GlobalSearch), we could filter the DeviceInventory list state
-      // but for now we just switch view.
   };
 
   // --- CUSTOMER HANDLERS ---
@@ -631,6 +629,7 @@ const App: React.FC = () => {
                     devices={devices}
                     invoices={invoices}
                     servicePlans={servicePlans}
+                    maintenance={maintenanceList}
                     userRole={currentUserRole}
                     onCreateTicket={handleCreateTicket}
                     onNavigateToTicket={handleTicketSelect}
@@ -645,6 +644,8 @@ const App: React.FC = () => {
                     tickets={tickets} 
                     onSelectTicket={handleTicketSelect} 
                     onCreateTicket={handleCreateTicket}
+                    invoices={invoices}
+                    maintenance={maintenanceList}
                 />
               )}
               {currentView === View.DEVICES && (
@@ -655,6 +656,7 @@ const App: React.FC = () => {
                     onAddDevice={handleAddDevice}
                     onUpdateDevice={handleUpdateDevice}
                     onValidateDevice={handleValidateDevice}
+                    preSetFilter={deviceFilter} // Pass filter from global search
                 />
               )}
               {currentView === View.CUSTOMERS && (

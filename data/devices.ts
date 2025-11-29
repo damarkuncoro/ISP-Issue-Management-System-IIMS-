@@ -13,19 +13,6 @@ export const devicesData = [
     "validated_by": "Network Engineer"
   },
   {
-    "id": "OLT-ZTE-C320",
-    "name": "OLT Cluster A",
-    "type": "OLT",
-    "model": "ZTE C320",
-    "ip_address": "172.16.20.2",
-    "mac_address": "CC:2D:E0:44:55:66",
-    "serial_number": "ZTEG982342",
-    "location": "Cluster A Shelter",
-    "status": "Active",
-    "last_updated": "2025-11-15T09:30:00",
-    "validated_by": "Network Engineer"
-  },
-  {
     "id": "SW-DIST-BKS",
     "name": "Switch Distribution Bekasi",
     "type": "Switch",
@@ -36,7 +23,22 @@ export const devicesData = [
     "location": "POP Bekasi",
     "status": "Pending Validation",
     "last_updated": "2025-11-28T11:00:00",
-    "installed_by": "Field Tech - Budi"
+    "installed_by": "Field Tech - Budi",
+    "uplink_device_id": "CCR1036-01" 
+  },
+  {
+    "id": "OLT-ZTE-C320",
+    "name": "OLT Cluster A",
+    "type": "OLT",
+    "model": "ZTE C320",
+    "ip_address": "172.16.20.2",
+    "mac_address": "CC:2D:E0:44:55:66",
+    "serial_number": "ZTEG982342",
+    "location": "Cluster A Shelter",
+    "status": "Active",
+    "last_updated": "2025-11-15T09:30:00",
+    "validated_by": "Network Engineer",
+    "uplink_device_id": "SW-DIST-BKS"
   },
   {
     "id": "ONU-250045",
@@ -51,6 +53,7 @@ export const devicesData = [
     "last_updated": "2025-11-28T12:00:00",
     "installed_by": "Field Tech - Budi",
     "validated_by": "Network Engineer",
-    "customer_id": "CID-250045"
+    "customer_id": "CID-250045",
+    "uplink_device_id": "OLT-ZTE-C320"
   }
 ];

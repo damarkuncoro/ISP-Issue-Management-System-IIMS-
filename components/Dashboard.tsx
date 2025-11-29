@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Ticket, UserRole, Customer, Device, Invoice, ServicePlan } from '../types';
+import { Ticket, UserRole, Customer, Device, Invoice, ServicePlan, Maintenance } from '../types';
 import HelpdeskDashboard from './dashboard/HelpdeskDashboard';
 import ProvisioningDashboard from './dashboard/ProvisioningDashboard';
 import SalesDashboard from './dashboard/SalesDashboard';
@@ -16,6 +15,7 @@ interface DashboardProps {
   devices: Device[];
   invoices: Invoice[]; 
   servicePlans: ServicePlan[];
+  maintenance: Maintenance[];
   userRole?: UserRole;
   onCreateTicket: (data: any) => void;
   onNavigateToTicket: (ticket: Ticket) => void;
@@ -31,6 +31,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   devices, 
   invoices,
   servicePlans,
+  maintenance,
   userRole = UserRole.NOC, 
   onCreateTicket, 
   onNavigateToTicket, 
@@ -61,6 +62,8 @@ const Dashboard: React.FC<DashboardProps> = ({
             tickets={tickets} 
             customers={customers}
             devices={devices}
+            invoices={invoices}
+            maintenance={maintenance}
             onCreateTicket={onCreateTicket} 
             onNavigateToTicket={onNavigateToTicket}
             onViewAllTickets={onViewAllTickets}

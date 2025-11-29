@@ -14,7 +14,8 @@ export enum TicketType {
   DEVICE = 'Device',
   CUSTOMER = 'Customer',
   INFRASTRUCTURE = 'Infrastructure',
-  SECURITY = 'Security'
+  SECURITY = 'Security',
+  BILLING = 'Billing' // Added explicit Billing type
 }
 
 export enum Severity {
@@ -59,8 +60,10 @@ export interface Ticket {
   severity: Severity;
   sla_deadline: string; // ISO String
   created_at: string; // ISO String
-  link_id?: string;
+  link_id?: string; // Generic link (usually Customer ID)
   device_id?: string;
+  related_invoice_id?: string; // Relation to Invoice
+  related_maintenance_id?: string; // Relation to Maintenance Schedule
   status: TicketStatus;
   description?: string;
   logs?: string;
@@ -110,6 +113,7 @@ export interface Device {
   validated_by?: string;
   installation_photo?: string; // Mock URL or Base64
   customer_id?: string; // Relation to Customer
+  uplink_device_id?: string; // Relation to Parent Device (Topology) e.g., ONU connects to OLT
 }
 
 // --- CUSTOMER TYPES ---
@@ -129,7 +133,8 @@ export interface Customer {
   phone: string;
   address: string;
   coordinates?: { lat: number, lng: number };
-  package_name: string;
+  package_name: string; // Legacy string
+  service_plan_id?: string; // Relational Link to ServicePlan
   status: CustomerStatus;
   registered_at: string;
   

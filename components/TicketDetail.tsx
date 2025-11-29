@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Ticket, TicketStatus, Severity, Employee, ActivityLogEntry } from '../types';
 import { STATUS_COLORS } from '../constants';
@@ -6,7 +5,7 @@ import { AIAnalysisResult, analyzeTicketWithGemini } from '../services/geminiSer
 import { 
   ArrowLeft, MapPin, Server, Users, Clock, AlertTriangle, 
   CheckCircle, Play, UserPlus, PenTool, Sparkles, MessageSquare,
-  History, FileText, BrainCircuit, Activity, Link as LinkIcon, Send
+  History, FileText, BrainCircuit, Activity, Link as LinkIcon, Send, Wrench
 } from 'lucide-react';
 import AssignTicketModal from './AssignTicketModal';
 import ResolveTicketModal from './ResolveTicketModal';
@@ -485,6 +484,30 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                      </div>
                   </li>
                 )}
+                {/* NEW RELATIONAL FIELDS */}
+                {ticket.related_invoice_id && (
+                    <li className="flex items-start gap-3">
+                        <FileText className="text-slate-400 mt-0.5" size={18} />
+                        <div>
+                            <span className="block text-xs text-slate-500">Related Invoice</span>
+                            <span className="font-medium text-blue-600 flex items-center gap-1">
+                                {ticket.related_invoice_id} <LinkIcon size={10} />
+                            </span>
+                        </div>
+                    </li>
+                )}
+                {ticket.related_maintenance_id && (
+                    <li className="flex items-start gap-3">
+                        <Wrench className="text-orange-400 mt-0.5" size={18} />
+                        <div>
+                            <span className="block text-xs text-slate-500">Caused by Maintenance</span>
+                            <span className="font-medium text-orange-600 flex items-center gap-1">
+                                {ticket.related_maintenance_id} <LinkIcon size={10} />
+                            </span>
+                        </div>
+                    </li>
+                )}
+
                 <li className="flex items-start gap-3">
                   <Users className="text-slate-400 mt-0.5" size={18} />
                   <div>

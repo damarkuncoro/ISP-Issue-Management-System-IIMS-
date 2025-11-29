@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Ticket, TicketStatus, Severity, Customer, Device } from '../types';
+import { Ticket, TicketStatus, Severity, Customer, Device, Invoice, Maintenance } from '../types';
 import { STATUS_COLORS, SEVERITY_COLORS, MOCK_CUSTOMERS, MOCK_DEVICES } from '../constants';
 import { Search, Filter, AlertTriangle, Plus } from 'lucide-react';
 import CreateTicketModal from './CreateTicketModal';
@@ -9,9 +8,11 @@ interface TicketListProps {
   tickets: Ticket[];
   onSelectTicket: (ticket: Ticket) => void;
   onCreateTicket: (ticketData: any) => void;
+  invoices?: Invoice[];
+  maintenance?: Maintenance[];
 }
 
-const TicketList: React.FC<TicketListProps> = ({ tickets, onSelectTicket, onCreateTicket }) => {
+const TicketList: React.FC<TicketListProps> = ({ tickets, onSelectTicket, onCreateTicket, invoices = [], maintenance = [] }) => {
   const [filterText, setFilterText] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -30,8 +31,10 @@ const TicketList: React.FC<TicketListProps> = ({ tickets, onSelectTicket, onCrea
         isOpen={isCreateModalOpen} 
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={onCreateTicket}
-        customers={MOCK_CUSTOMERS as unknown as Customer[]} // In real app, pass from props
-        devices={MOCK_DEVICES as unknown as Device[]} // In real app, pass from props
+        customers={MOCK_CUSTOMERS as unknown as Customer[]} // In real app, pass from props if needed updated
+        devices={MOCK_DEVICES as unknown as Device[]} // In real app, pass from props if needed updated
+        invoices={invoices}
+        maintenance={maintenance}
       />
 
       {/* Filters and Actions */}

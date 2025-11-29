@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Ticket, TicketType, TicketStatus, Severity, Customer, Device } from '../../types';
+import { Ticket, TicketType, TicketStatus, Severity, Customer, Device, Invoice, Maintenance } from '../../types';
 import { Phone, Clock, AlertCircle, Search, MapPin, CheckCircle, XCircle, ArrowRight, Plus } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import CreateTicketModal from '../CreateTicketModal';
@@ -9,6 +8,8 @@ interface HelpdeskDashboardProps {
   tickets: Ticket[];
   customers: Customer[];
   devices: Device[];
+  invoices: Invoice[];
+  maintenance: Maintenance[];
   onCreateTicket: (data: any) => void;
   onNavigateToTicket: (ticket: Ticket) => void;
   onViewAllTickets: () => void;
@@ -27,7 +28,7 @@ const StatCard = ({ title, value, subtext, icon, colorClass }: { title: string, 
   </div>
 );
 
-const HelpdeskDashboard: React.FC<HelpdeskDashboardProps> = ({ tickets, customers, devices, onCreateTicket, onNavigateToTicket, onViewAllTickets }) => {
+const HelpdeskDashboard: React.FC<HelpdeskDashboardProps> = ({ tickets, customers, devices, invoices, maintenance, onCreateTicket, onNavigateToTicket, onViewAllTickets }) => {
   const [isCoverageModalOpen, setIsCoverageModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   
@@ -73,6 +74,8 @@ const HelpdeskDashboard: React.FC<HelpdeskDashboardProps> = ({ tickets, customer
         onSubmit={handleCreateSubmit} 
         customers={customers}
         devices={devices}
+        invoices={invoices}
+        maintenance={maintenance}
       />
 
       {/* Coverage Modal */}

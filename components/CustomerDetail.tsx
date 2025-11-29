@@ -88,6 +88,9 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
   const customerInvoices = invoices.filter(inv => inv.customer_id === customer.id);
   const customerDevices = devices.filter(d => d.customer_id === customer.id);
 
+  // Relational Data: Get Plan Details
+  const customerPlan = servicePlans.find(p => p.id === customer.service_plan_id) || servicePlans.find(p => p.name === customer.package_name);
+
   const handleTicketSubmit = (data: any) => {
       if (onCreateTicket) {
           onCreateTicket(data);
@@ -135,6 +138,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
             userRole={userRole}
             customers={[customer]} // Pass just this customer for auto-select logic
             preSelectedCustomerId={customer.id}
+            allDevices={devices} // Pass all devices for Uplink selection
           />
       )}
 
@@ -310,6 +314,9 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                                      <div>
                                          <p className="font-bold text-slate-800 text-sm">{device.name}</p>
                                          <p className="text-xs text-slate-500">{device.model} • SN: {device.serial_number}</p>
+                                         {device.uplink_device_id && (
+                                             <p className="text-[10px] text-purple-600 font-medium">Uplink: {device.uplink_device_id}</p>
+                                         )}
                                      </div>
                                  </div>
                                  <div className="text-right">
@@ -335,8 +342,18 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">Subscription Plan</h3>
                 <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl mb-4">
-                    <h4 className="text-xl font-bold text-blue-900">{customer.package_name}</h4>
-                    <p className="text-blue-700 text-sm mt-1">Fiber Optic Unlimited</p>
+                    {customerPlan ? (
+                        <>
+                            <h4 className="text-xl font-bold text-blue-900">{customerPlan.name}</h4>
+                            <p className="text-blue-700 text-sm mt-1">{customerPlan.speed_mbps} Mbps | {customerPlan.category}</p>
+                            <p className="text-blue-600/80 text-xs mt-1">{formatCurrency(customerPlan.price)}/mo</p>
+                        </>
+                    ) : (
+                        <>
+                            <h4 className="text-xl font-bold text-blue-900">{customer.package_name}</h4>
+                            <p className="text-blue-700 text-sm mt-1">Legacy Plan</p>
+                        </>
+                    )}
                 </div>
                 <ul className="space-y-3 text-sm">
                     <li className="flex justify-between">
