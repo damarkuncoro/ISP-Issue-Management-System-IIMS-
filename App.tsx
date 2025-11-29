@@ -148,6 +148,15 @@ const App: React.FC = () => {
     }
   };
 
+  // New handler for generic ticket updates (e.g., AI Analysis results)
+  const handleUpdateTicket = (id: string, updates: Partial<Ticket>) => {
+      setTickets(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+      
+      if (selectedTicket && selectedTicket.id === id) {
+          setSelectedTicket(prev => prev ? { ...prev, ...updates } : null);
+      }
+  };
+
   const handleCreateTicket = (ticketData: any) => {
     const newId = `ISP-20251128-${String(tickets.length + 1).padStart(3, '0')}`;
     const timestamp = new Date().toISOString();
@@ -584,8 +593,10 @@ const App: React.FC = () => {
               {currentView === View.DETAIL_TICKET && selectedTicket && (
                 <TicketDetail 
                   ticket={selectedTicket} 
+                  employees={employees} // Passed employees here
                   onBack={() => setCurrentView(View.TICKETS)}
                   onUpdateStatus={handleUpdateStatus}
+                  onUpdateTicket={handleUpdateTicket}
                 />
               )}
               {currentView === View.DETAIL_CUSTOMER && selectedCustomer && (
