@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Ticket as TicketIcon, Settings as SettingsIcon, Bell, Search, User, Menu, X, ChevronDown, Server, Users, DollarSign, Briefcase, CreditCard } from 'lucide-react';
+import { LayoutDashboard, Ticket as TicketIcon, Settings as SettingsIcon, Bell, Search, User, Menu, X, ChevronDown, Server, Users, DollarSign, Briefcase, CreditCard, LogOut } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TicketList from './components/TicketList';
 import TicketDetail from './components/TicketDetail';
@@ -11,7 +12,8 @@ import ServicePlanManager from './components/ServicePlanManager';
 import EmployeeManagement from './components/EmployeeManagement';
 import EmployeeDetail from './components/EmployeeDetail';
 import Settings from './components/Settings'; 
-import BillingList from './components/BillingList'; // Import new component
+import BillingList from './components/BillingList'; 
+import LoginScreen from './components/LoginScreen';
 import { MOCK_TICKETS, MOCK_DEVICES, MOCK_CUSTOMERS, MOCK_SERVICE_PLANS, MOCK_EMPLOYEES, MOCK_INVOICES } from './constants';
 import { Ticket, TicketStatus, ActivityLogEntry, Severity, UserRole, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, Invoice, InvoiceStatus } from './types';
 import { generateTicketSummary } from './services/geminiService';
@@ -23,7 +25,7 @@ enum View {
   CUSTOMERS = 'customers',
   SERVICE_PLANS = 'service_plans',
   EMPLOYEES = 'employees',
-  BILLING = 'billing', // New View
+  BILLING = 'billing', 
   DETAIL_TICKET = 'detail_ticket',
   DETAIL_CUSTOMER = 'detail_customer',
   DETAIL_EMPLOYEE = 'detail_employee',
@@ -31,6 +33,11 @@ enum View {
 }
 
 const App: React.FC = () => {
+  // --- AUTH STATE ---
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [sessionUser, setSessionUser] = useState<{name: string, role: UserRole} | null>(null);
+
+  // --- APP STATE ---
   const [currentView, setCurrentView] = useState<View>(View.DASHBOARD);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [tickets, setTickets] = useState<Ticket[]>(MOCK_TICKETS);
@@ -38,7 +45,7 @@ const App: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>(MOCK_CUSTOMERS);
   const [servicePlans, setServicePlans] = useState<ServicePlan[]>(MOCK_SERVICE_PLANS);
   const [employees, setEmployees] = useState<Employee[]>(MOCK_EMPLOYEES);
-  const [invoices, setInvoices] = useState<Invoice[]>(MOCK_INVOICES); // State for Invoices
+  const [invoices, setInvoices] = useState<Invoice[]>(MOCK_INVOICES); 
   
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -46,20 +53,24 @@ const App: React.FC = () => {
   const [deviceToValidate, setDeviceToValidate] = useState<Device | null>(null);
   
   const [aiSummary, setAiSummary] = useState<string>('');
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole>(UserRole.NOC);
   
   // Notification State
   const [notification, setNotification] = useState<Notification | null>(null);
 
+  // Derived role from session, but allow override for DEMO purposes in sidebar
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole>(UserRole.NOC);
+
   useEffect(() => {
-    // Generate AI Summary on mount
-    const fetchSummary = async () => {
-        const summary = await generateTicketSummary(tickets);
-        setAiSummary(summary);
-    };
-    fetchSummary();
+    // Generate AI Summary on mount (only once logged in ideally, but simple check here)
+    if (isAuthenticated) {
+        const fetchSummary = async () => {
+            const summary = await generateTicketSummary(tickets);
+            setAiSummary(summary);
+        };
+        fetchSummary();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isAuthenticated]);
 
   const showNotification = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info') => {
     setNotification({
@@ -68,6 +79,19 @@ const App: React.FC = () => {
       message,
       type
     });
+  };
+
+  const handleLogin = (role: UserRole, username: string) => {
+      setIsAuthenticated(true);
+      setSessionUser({ name: username, role: role });
+      setCurrentUserRole(role);
+      showNotification('Welcome Back', `Logged in as ${username} (${role})`, 'success');
+  };
+
+  const handleLogout = () => {
+      setIsAuthenticated(false);
+      setSessionUser(null);
+      setCurrentView(View.DASHBOARD);
   };
 
   // --- TICKET HANDLERS ---
@@ -217,8 +241,6 @@ const App: React.FC = () => {
   const handleDashboardValidateDevice = (device: Device) => {
       // Navigate to Devices view
       setCurrentView(View.DEVICES);
-      // In a real app we might pass a "selectedDevice" prop to DeviceInventory to auto-open modal
-      // For now, we rely on the user finding it or future implementation of auto-open
   };
 
   // --- CUSTOMER HANDLERS ---
@@ -230,7 +252,7 @@ const App: React.FC = () => {
 
   const handleDashboardCustomerSelect = (customer: Customer) => {
       setSelectedCustomer(customer);
-      setCurrentView(View.DETAIL_CUSTOMER); // This will open details where Provisioning button exists
+      setCurrentView(View.DETAIL_CUSTOMER); 
   };
 
   const handleAddCustomer = (customerData: any) => {
@@ -304,7 +326,6 @@ const App: React.FC = () => {
   const handleUpdateEmployee = (id: string, data: any) => {
     setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...data } : e));
     
-    // If the currently selected employee is the one being updated, update that state too
     if (selectedEmployee && selectedEmployee.id === id) {
         setSelectedEmployee({ ...selectedEmployee, ...data });
     }
@@ -332,6 +353,15 @@ const App: React.FC = () => {
 
 
   // --- UI COMPONENTS ---
+
+  if (!isAuthenticated) {
+      return (
+        <>
+            <NotificationToast notification={notification} onClose={() => setNotification(null)} />
+            <LoginScreen onLogin={handleLogin} />
+        </>
+      );
+  }
 
   const NavItem = ({ view, icon, label }: { view: View, icon: React.ReactNode, label: string }) => (
     <button 
@@ -405,11 +435,15 @@ const App: React.FC = () => {
 
           {/* User Profile / Role Switcher */}
           <div className="p-4 border-t border-slate-800 bg-slate-900">
-             <div className="flex flex-col gap-2">
-                <label className="text-xs text-slate-500 uppercase font-semibold px-1">Current Role View</label>
+             
+             {/* Demo Role Switcher */}
+             <div className="flex flex-col gap-2 mb-4 bg-slate-800/50 p-2 rounded-lg border border-slate-700">
+                <label className="text-[10px] text-slate-400 uppercase font-bold px-1 flex items-center gap-1">
+                    Demo View As
+                </label>
                 <div className="relative">
                     <select 
-                        className="w-full bg-slate-800 text-white text-sm rounded-lg px-3 py-2.5 border border-slate-700 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
+                        className="w-full bg-slate-900 text-white text-xs rounded px-2 py-2 border border-slate-600 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
                         value={currentUserRole}
                         onChange={(e) => setCurrentUserRole(e.target.value as UserRole)}
                     >
@@ -417,20 +451,21 @@ const App: React.FC = () => {
                             <option key={role} value={role}>{role}</option>
                         ))}
                     </select>
-                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                    <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
                 </div>
              </div>
              
-             <div className="flex items-center gap-3 mt-4 px-1">
-               <div className="w-8 h-8 rounded-full bg-blue-900/50 flex items-center justify-center border border-blue-500/30">
-                 <User size={16} className="text-blue-400" />
+             <div className="flex items-center gap-3 px-1">
+               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 flex items-center justify-center font-bold text-white shadow-lg">
+                 {sessionUser?.name.charAt(0)}
                </div>
-               <div>
-                 <p className="text-sm font-medium text-white truncate w-32">User Session</p>
-                 <p className="text-[10px] text-green-500 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Online
-                 </p>
+               <div className="flex-1 overflow-hidden">
+                 <p className="text-sm font-bold text-white truncate">{sessionUser?.name}</p>
+                 <p className="text-[10px] text-blue-400 truncate">{sessionUser?.role}</p>
                </div>
+               <button onClick={handleLogout} className="text-slate-400 hover:text-red-400 transition" title="Logout">
+                   <LogOut size={16} />
+               </button>
              </div>
           </div>
         </div>

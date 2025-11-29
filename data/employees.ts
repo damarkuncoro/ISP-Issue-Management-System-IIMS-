@@ -1,3 +1,4 @@
+
 export const employeesData = [
   {
     "id": "EMP-1001",
@@ -43,5 +44,27 @@ export const employeesData = [
     "role": "NOC Engineer",
     "status": "On Leave",
     "join_date": "2021-11-20"
+  },
+  {
+    "id": "EMP-4001",
+    "full_name": "Dewi Finance",
+    "email": "dewi.finance@isp.com",
+    "phone": "0815-6666-5555",
+    "position": "Billing Specialist",
+    "department": "Finance",
+    "role": "Finance / Billing",
+    "status": "Active",
+    "join_date": "2022-08-15"
+  },
+  {
+    "id": "EMP-1000",
+    "full_name": "John Director",
+    "email": "director@isp.com",
+    "phone": "0811-0000-0000",
+    "position": "General Manager",
+    "department": "Management",
+    "role": "Manager",
+    "status": "Active",
+    "join_date": "2018-05-01"
   }
 ];

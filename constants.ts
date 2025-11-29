@@ -1,3 +1,4 @@
+
 import { Ticket, TicketStatus, Severity, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, EmployeeStatus, UserRole, Invoice } from './types';
 
 import { ticketsData } from './data/tickets';
