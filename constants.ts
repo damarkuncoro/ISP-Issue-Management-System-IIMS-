@@ -1,5 +1,5 @@
 
-import { Ticket, TicketStatus, Severity, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, EmployeeStatus, UserRole, Invoice } from './types';
+import { Ticket, TicketStatus, Severity, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, EmployeeStatus, UserRole, Invoice, Maintenance } from './types';
 
 import { ticketsData } from './data/tickets';
 import { devicesData } from './data/devices';
@@ -7,6 +7,7 @@ import { customersData } from './data/customers';
 import { servicePlansData } from './data/service_plans';
 import { employeesData } from './data/employees';
 import { invoicesData } from './data/invoices';
+import { maintenanceData } from './data/maintenance';
 
 // Mapping or casting JSON data to Types
 // Note: JSON strings must match the Enum string values defined in types.ts
@@ -37,3 +38,5 @@ export const MOCK_SERVICE_PLANS: ServicePlan[] = servicePlansData as unknown as 
 export const MOCK_EMPLOYEES: Employee[] = employeesData as unknown as Employee[];
 
 export const MOCK_INVOICES: Invoice[] = invoicesData as unknown as Invoice[];
+
+export const MOCK_MAINTENANCE: Maintenance[] = maintenanceData as unknown as Maintenance[];

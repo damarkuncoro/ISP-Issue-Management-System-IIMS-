@@ -1,14 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
-import { Ticket, TicketStatus, Severity, Employee } from '../types';
+import { Ticket, TicketStatus, Severity, Employee, ActivityLogEntry } from '../types';
 import { STATUS_COLORS } from '../constants';
 import { AIAnalysisResult, analyzeTicketWithGemini } from '../services/geminiService';
 import { 
   ArrowLeft, MapPin, Server, Users, Clock, AlertTriangle, 
   CheckCircle, Play, UserPlus, PenTool, Sparkles, MessageSquare,
-  History, FileText, BrainCircuit, Activity
+  History, FileText, BrainCircuit, Activity, Link as LinkIcon
 } from 'lucide-react';
 import AssignTicketModal from './AssignTicketModal';
+import ResolveTicketModal from './ResolveTicketModal';
 
 interface TicketDetailProps {
   ticket: Ticket;
@@ -16,15 +17,26 @@ interface TicketDetailProps {
   onBack: () => void;
   onUpdateStatus: (id: string, newStatus: TicketStatus) => void;
   onUpdateTicket: (id: string, data: Partial<Ticket>) => void;
+  onNavigateToDevice?: (deviceId: string) => void;
+  onNavigateToCustomer?: (customerId: string) => void;
 }
 
-const TicketDetail: React.FC<TicketDetailProps> = ({ ticket, employees, onBack, onUpdateStatus, onUpdateTicket }) => {
+const TicketDetail: React.FC<TicketDetailProps> = ({ 
+    ticket, 
+    employees, 
+    onBack, 
+    onUpdateStatus, 
+    onUpdateTicket,
+    onNavigateToDevice,
+    onNavigateToCustomer 
+}) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'ai' | 'history'>('overview');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<AIAnalysisResult | null>(null);
   
-  // Modal State
+  // Modal States
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
 
   // Load persisted AI Analysis if available
   useEffect(() => {
@@ -49,7 +61,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticket, employees, onBack, 
         
         // Persist the analysis to the ticket
         const timestamp = new Date().toISOString();
-        const newLogEntry = {
+        const newLogEntry: ActivityLogEntry = {
             id: `log-ai-${Date.now()}`,
             action: 'AI Analysis',
             description: 'Gemini AI Diagnostic run triggered.',
@@ -70,7 +82,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticket, employees, onBack, 
 
   const handleAssignEmployee = (employee: Employee) => {
       const timestamp = new Date().toISOString();
-      const newLogEntry = {
+      const newLogEntry: ActivityLogEntry = {
           id: `log-assign-${Date.now()}`,
           action: 'Ticket Assigned',
           description: `Ticket assigned to ${employee.full_name} (${employee.position})`,
@@ -85,6 +97,30 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticket, employees, onBack, 
           assignee: employee.full_name,
           status: TicketStatus.ASSIGNED,
           activityLog: updatedLogs
+      });
+  };
+
+  const handleResolveTicket = (data: { rootCause: string; actionTaken: string; resolutionCode: string; notes: string }) => {
+      const timestamp = new Date().toISOString();
+      
+      const newLogEntry: ActivityLogEntry = {
+          id: `log-resolve-${Date.now()}`,
+          action: 'Ticket Resolved',
+          description: `Resolved: ${data.resolutionCode} - ${data.rootCause}. Action: ${data.actionTaken}`,
+          timestamp: timestamp,
+          user: ticket.assignee || 'Engineer'
+      };
+      
+      const updatedLogs = [newLogEntry, ...(ticket.activityLog || [])];
+      
+      // Update ticket description or append notes? 
+      // Let's create a resolution summary block in description for now, or just rely on log
+      const resolutionSummary = `\n\n--- RESOLUTION REPORT ---\nRoot Cause: ${data.rootCause}\nAction: ${data.actionTaken}\nCode: ${data.resolutionCode}\nNotes: ${data.notes}`;
+
+      onUpdateTicket(ticket.id, {
+          status: TicketStatus.RESOLVED,
+          activityLog: updatedLogs,
+          description: ticket.description + resolutionSummary
       });
   };
 
@@ -109,7 +145,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticket, employees, onBack, 
               <UserPlus size={16} /> Assign Engineer
             </button>
             <button 
-               onClick={() => onUpdateStatus(ticket.id, TicketStatus.RESOLVED)}
+               onClick={() => setIsResolveModalOpen(true)}
                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition shadow-sm"
             >
               <CheckCircle size={16} /> Quick Resolve
@@ -128,7 +164,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticket, employees, onBack, 
       case TicketStatus.FIXING:
         return (
           <button 
-            onClick={() => onUpdateStatus(ticket.id, TicketStatus.RESOLVED)}
+            onClick={() => setIsResolveModalOpen(true)}
             className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition shadow-sm"
           >
             <CheckCircle size={16} /> Mark Resolved
@@ -151,13 +187,20 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticket, employees, onBack, 
   return (
     <div className="space-y-6 animate-in slide-in-from-right duration-300">
       
-      {/* Assign Modal */}
+      {/* Modals */}
       <AssignTicketModal 
         isOpen={isAssignModalOpen}
         onClose={() => setIsAssignModalOpen(false)}
         onAssign={handleAssignEmployee}
         employees={employees}
         currentTicket={ticket}
+      />
+
+      <ResolveTicketModal 
+        isOpen={isResolveModalOpen}
+        onClose={() => setIsResolveModalOpen(false)}
+        onResolve={handleResolveTicket}
+        ticket={ticket}
       />
 
       {/* Header Navigation */}
@@ -313,9 +356,9 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticket, employees, onBack, 
                           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start bg-slate-50 p-3 rounded-lg border border-slate-100">
                              <div>
                                 <h4 className="font-bold text-slate-800 text-sm">{event.action}</h4>
-                                <p className="text-sm text-slate-600 mt-1">{event.description}</p>
+                                <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{event.description}</p>
                              </div>
-                             <div className="text-right mt-2 sm:mt-0">
+                             <div className="text-right mt-2 sm:mt-0 flex-shrink-0">
                                 <p className="text-xs font-mono text-slate-500">{new Date(event.timestamp).toLocaleString()}</p>
                                 <p className="text-xs uppercase font-bold text-blue-600 mt-1">{event.user}</p>
                              </div>
@@ -347,9 +390,34 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticket, employees, onBack, 
                   <Server className="text-slate-400 mt-0.5" size={18} />
                   <div>
                     <span className="block text-xs text-slate-500">Device / Link ID</span>
-                    <span className="font-medium text-slate-800">{ticket.device_id || ticket.link_id || 'N/A'}</span>
+                    <span className="font-medium text-slate-800 break-all">
+                       {ticket.device_id ? (
+                           <button onClick={() => onNavigateToDevice && onNavigateToDevice(ticket.device_id!)} className="text-blue-600 hover:underline flex items-center gap-1">
+                               {ticket.device_id} <LinkIcon size={10} />
+                           </button>
+                       ) : ticket.link_id ? (
+                           <span className="text-slate-800">{ticket.link_id}</span>
+                       ) : (
+                           'N/A'
+                       )}
+                    </span>
                   </div>
                 </li>
+                {ticket.type === 'Customer' && (
+                  <li className="flex items-start gap-3">
+                     <Users className="text-slate-400 mt-0.5" size={18} />
+                     <div>
+                        <span className="block text-xs text-slate-500">Customer ID</span>
+                        <span className="font-medium text-slate-800 break-all">
+                            {ticket.link_id && ticket.link_id.startsWith('CID') ? (
+                                <button onClick={() => onNavigateToCustomer && onNavigateToCustomer(ticket.link_id!)} className="text-blue-600 hover:underline flex items-center gap-1">
+                                    {ticket.link_id} <LinkIcon size={10} />
+                                </button>
+                            ) : 'N/A'}
+                        </span>
+                     </div>
+                  </li>
+                )}
                 <li className="flex items-start gap-3">
                   <Users className="text-slate-400 mt-0.5" size={18} />
                   <div>
@@ -395,7 +463,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({ ticket, employees, onBack, 
                      </div>
                      <div>
                        <p className="font-medium text-slate-800">{ticket.assignee}</p>
-                       <p className="text-xs text-slate-500">Field Technician</p>
+                       <p className="text-xs text-slate-500">Technician</p>
                      </div>
                    </div>
                ) : (

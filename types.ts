@@ -201,3 +201,25 @@ export interface Invoice {
   payment_date?: string;
   items: { description: string, amount: number }[];
 }
+
+// --- MAINTENANCE TYPES ---
+
+export enum MaintenanceStatus {
+  SCHEDULED = 'Scheduled',
+  IN_PROGRESS = 'In Progress',
+  COMPLETED = 'Completed',
+  CANCELLED = 'Cancelled'
+}
+
+export interface Maintenance {
+  id: string; // MT-YYYYMM-xxx
+  title: string;
+  description: string;
+  start_time: string; // ISO String
+  end_time: string; // ISO String
+  affected_area: string;
+  affected_devices: string[]; // List of Device IDs
+  status: MaintenanceStatus;
+  type: 'Hardware Upgrade' | 'Software Patch' | 'Fiber Relocation' | 'Emergency';
+  created_by: string;
+}

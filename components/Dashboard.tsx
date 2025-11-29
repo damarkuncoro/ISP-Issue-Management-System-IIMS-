@@ -59,6 +59,8 @@ const Dashboard: React.FC<DashboardProps> = ({
         return (
           <HelpdeskDashboard 
             tickets={tickets} 
+            customers={customers}
+            devices={devices}
             onCreateTicket={onCreateTicket} 
             onNavigateToTicket={onNavigateToTicket}
             onViewAllTickets={onViewAllTickets}

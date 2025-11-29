@@ -1,10 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Ticket as TicketIcon, Settings as SettingsIcon, Bell, Search, User, Menu, X, ChevronDown, Server, Users, DollarSign, Briefcase, CreditCard, LogOut } from 'lucide-react';
+import { LayoutDashboard, Ticket as TicketIcon, Settings as SettingsIcon, Bell, Search, User, Menu, X, ChevronDown, Server, Users, DollarSign, Briefcase, CreditCard, LogOut, Calendar } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TicketList from './components/TicketList';
 import TicketDetail from './components/TicketDetail';
 import NotificationToast, { Notification } from './components/NotificationToast';
+import NotificationPanel from './components/NotificationPanel';
+import GlobalSearch from './components/GlobalSearch';
 import DeviceInventory from './components/DeviceInventory';
 import CustomerManagement from './components/CustomerManagement';
 import CustomerDetail from './components/CustomerDetail';
@@ -14,8 +15,9 @@ import EmployeeDetail from './components/EmployeeDetail';
 import Settings from './components/Settings'; 
 import BillingList from './components/BillingList'; 
 import LoginScreen from './components/LoginScreen';
-import { MOCK_TICKETS, MOCK_DEVICES, MOCK_CUSTOMERS, MOCK_SERVICE_PLANS, MOCK_EMPLOYEES, MOCK_INVOICES } from './constants';
-import { Ticket, TicketStatus, ActivityLogEntry, Severity, UserRole, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, Invoice, InvoiceStatus } from './types';
+import MaintenanceSchedule from './components/MaintenanceSchedule';
+import { MOCK_TICKETS, MOCK_DEVICES, MOCK_CUSTOMERS, MOCK_SERVICE_PLANS, MOCK_EMPLOYEES, MOCK_INVOICES, MOCK_MAINTENANCE } from './constants';
+import { Ticket, TicketStatus, ActivityLogEntry, Severity, UserRole, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, Invoice, InvoiceStatus, Maintenance, MaintenanceStatus } from './types';
 import { generateTicketSummary } from './services/geminiService';
 
 enum View {
@@ -26,6 +28,7 @@ enum View {
   SERVICE_PLANS = 'service_plans',
   EMPLOYEES = 'employees',
   BILLING = 'billing', 
+  MAINTENANCE = 'maintenance',
   DETAIL_TICKET = 'detail_ticket',
   DETAIL_CUSTOMER = 'detail_customer',
   DETAIL_EMPLOYEE = 'detail_employee',
@@ -46,16 +49,18 @@ const App: React.FC = () => {
   const [servicePlans, setServicePlans] = useState<ServicePlan[]>(MOCK_SERVICE_PLANS);
   const [employees, setEmployees] = useState<Employee[]>(MOCK_EMPLOYEES);
   const [invoices, setInvoices] = useState<Invoice[]>(MOCK_INVOICES); 
+  const [maintenanceList, setMaintenanceList] = useState<Maintenance[]>(MOCK_MAINTENANCE);
   
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [deviceToValidate, setDeviceToValidate] = useState<Device | null>(null);
   
   const [aiSummary, setAiSummary] = useState<string>('');
   
   // Notification State
   const [notification, setNotification] = useState<Notification | null>(null);
+  const [notificationHistory, setNotificationHistory] = useState<Notification[]>([]);
+  const [isNotifPanelOpen, setIsNotifPanelOpen] = useState(false);
 
   // Derived role from session, but allow override for DEMO purposes in sidebar
   const [currentUserRole, setCurrentUserRole] = useState<UserRole>(UserRole.NOC);
@@ -73,12 +78,14 @@ const App: React.FC = () => {
   }, [isAuthenticated]);
 
   const showNotification = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info') => {
-    setNotification({
+    const newNotif = {
       id: Date.now().toString(),
       title,
       message,
       type
-    });
+    };
+    setNotification(newNotif);
+    setNotificationHistory(prev => [newNotif, ...prev]);
   };
 
   const handleLogin = (role: UserRole, username: string) => {
@@ -251,6 +258,15 @@ const App: React.FC = () => {
       // Navigate to Devices view
       setCurrentView(View.DEVICES);
   };
+  
+  const handleNavigateToDevice = (deviceId: string) => {
+      setCurrentView(View.DEVICES);
+      // In a real app we would scroll to or filter for the device. 
+      // For now, we assume the user will search for it (global search handles this better now).
+      
+      // OPTIONAL: If it's an exact search (passed from GlobalSearch), we could filter the DeviceInventory list state
+      // but for now we just switch view.
+  };
 
   // --- CUSTOMER HANDLERS ---
 
@@ -266,8 +282,24 @@ const App: React.FC = () => {
   
   const handleNavigateToCustomerAdd = () => {
       setCurrentView(View.CUSTOMERS);
-      // Ideally trigger modal open, but simple navigation for now
   }
+  
+  const handleNavigateToCustomer = (customerOrId: string | Customer) => {
+      let customer: Customer | undefined;
+      
+      if (typeof customerOrId === 'string') {
+          customer = customers.find(c => c.id === customerOrId);
+      } else {
+          customer = customerOrId;
+      }
+
+      if (customer) {
+          setSelectedCustomer(customer);
+          setCurrentView(View.DETAIL_CUSTOMER);
+      } else {
+          showNotification('Error', 'Customer not found.', 'error');
+      }
+  };
 
   const handleAddCustomer = (customerData: any) => {
       const newId = `CID-25${Math.floor(Math.random() * 9000) + 1000}`;
@@ -358,6 +390,23 @@ const App: React.FC = () => {
     showNotification('Payment Recorded', `Invoice ${id} marked as Paid.`, 'success');
   };
 
+  // --- MAINTENANCE HANDLERS ---
+  const handleAddMaintenance = (data: any) => {
+      const newId = `MT-202511-${String(maintenanceList.length + 1).padStart(3, '0')}`;
+      const newMaintenance: Maintenance = {
+          id: newId,
+          ...data,
+          created_by: currentUserRole
+      };
+      setMaintenanceList([newMaintenance, ...maintenanceList]);
+      showNotification('Schedule Created', 'Maintenance window scheduled successfully. Notification queued.', 'success');
+  };
+
+  const handleUpdateMaintenanceStatus = (id: string, status: MaintenanceStatus) => {
+      setMaintenanceList(prev => prev.map(m => m.id === id ? { ...m, status } : m));
+      showNotification('Status Updated', `Maintenance ${id} marked as ${status}.`, 'info');
+  };
+
 
   // --- SETTINGS HANDLER ---
   const handleSaveSettings = (section: string, data: any) => {
@@ -394,6 +443,7 @@ const App: React.FC = () => {
   const canManagePlans = currentUserRole === UserRole.PRODUCT_MANAGER || currentUserRole === UserRole.MANAGER;
   const canManageEmployees = currentUserRole === UserRole.HRD || currentUserRole === UserRole.MANAGER;
   const canViewBilling = currentUserRole === UserRole.FINANCE || currentUserRole === UserRole.MANAGER || currentUserRole === UserRole.SALES;
+  const canViewMaintenance = currentUserRole === UserRole.NOC || currentUserRole === UserRole.MANAGER || currentUserRole === UserRole.NETWORK || currentUserRole === UserRole.CS;
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -435,6 +485,9 @@ const App: React.FC = () => {
             <NavItem view={View.TICKETS} icon={<TicketIcon size={20} />} label="Issue Tickets" />
             <NavItem view={View.DEVICES} icon={<Server size={20} />} label="Inventory / Assets" />
             <NavItem view={View.CUSTOMERS} icon={<Users size={20} />} label="Customers" />
+            {canViewMaintenance && (
+                <NavItem view={View.MAINTENANCE} icon={<Calendar size={20} />} label="Maintenance" />
+            )}
             {canViewBilling && (
                 <NavItem view={View.BILLING} icon={<CreditCard size={20} />} label="Billing & Invoices" />
             )}
@@ -489,34 +542,62 @@ const App: React.FC = () => {
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         
         {/* Top Header */}
-        <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6 z-10">
+        <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6 z-10 sticky top-0">
           <div className="flex items-center gap-4">
             <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-slate-500 hover:text-slate-800">
               <Menu size={24} />
             </button>
-            <h2 className="text-lg font-semibold text-slate-800">
+            <h2 className="text-lg font-semibold text-slate-800 hidden md:block">
               {currentView === View.DASHBOARD && `${currentUserRole} Dashboard`}
               {(currentView === View.TICKETS || currentView === View.DETAIL_TICKET) && 'Ticket Management'}
               {currentView === View.DEVICES && 'Device Inventory & Assets'}
-              {(currentView === View.CUSTOMERS || currentView === View.DETAIL_CUSTOMER) && 'Customer Relationship & Provisioning'}
-              {currentView === View.BILLING && 'Finance & Billing Overview'}
-              {currentView === View.SERVICE_PLANS && 'Product & Service Plans'}
+              {(currentView === View.CUSTOMERS || currentView === View.DETAIL_CUSTOMER) && 'Customer Relationship'}
+              {currentView === View.MAINTENANCE && 'Planned Maintenance'}
+              {currentView === View.BILLING && 'Finance & Billing'}
+              {currentView === View.SERVICE_PLANS && 'Product & Plans'}
               {(currentView === View.EMPLOYEES || currentView === View.DETAIL_EMPLOYEE) && 'HR Information System'}
               {currentView === View.SETTINGS && 'System Settings'}
             </h2>
           </div>
 
-          <div className="flex items-center gap-4">
-             {/* AI Summary Banner (Desktop) */}
+          {/* GLOBAL SEARCH CENTER */}
+          <div className="flex-1 px-8 flex justify-center">
+             <GlobalSearch 
+                tickets={tickets} 
+                customers={customers} 
+                devices={devices} 
+                onNavigateToTicket={handleTicketSelect}
+                onNavigateToCustomer={handleNavigateToCustomer}
+                onNavigateToDevice={handleNavigateToDevice}
+             />
+          </div>
+
+          <div className="flex items-center gap-4 relative">
+             {/* AI Summary Banner (Desktop) - Hide if space is tight due to search */}
             {aiSummary && currentView === View.DASHBOARD && (
-                <div className="hidden lg:flex items-center bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-full text-xs text-blue-800 max-w-lg truncate">
+                <div className="hidden xl:flex items-center bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-full text-xs text-blue-800 max-w-xs truncate">
                     <span className="font-bold mr-2">AI Summary:</span> {aiSummary}
                 </div>
             )}
-            <button className="p-2 text-slate-400 hover:bg-slate-100 rounded-full relative">
-              <Bell size={20} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
+            
+            {/* Notification Bell */}
+            <div className="relative">
+                <button 
+                    onClick={() => setIsNotifPanelOpen(!isNotifPanelOpen)}
+                    className={`p-2 rounded-full relative transition ${isNotifPanelOpen ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
+                >
+                    <Bell size={20} />
+                    {notificationHistory.length > 0 && (
+                        <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                    )}
+                </button>
+                <NotificationPanel 
+                    isOpen={isNotifPanelOpen}
+                    onClose={() => setIsNotifPanelOpen(false)}
+                    notifications={notificationHistory}
+                    onClear={() => setNotificationHistory([])}
+                />
+            </div>
           </div>
         </header>
 
@@ -566,6 +647,14 @@ const App: React.FC = () => {
                    onSelectCustomer={handleCustomerSelect}
                 />
               )}
+              {currentView === View.MAINTENANCE && (
+                <MaintenanceSchedule
+                    maintenanceList={maintenanceList}
+                    userRole={currentUserRole}
+                    onAddMaintenance={handleAddMaintenance}
+                    onUpdateStatus={handleUpdateMaintenanceStatus}
+                />
+              )}
               {currentView === View.BILLING && (
                 <BillingList
                     invoices={invoices}
@@ -597,6 +686,8 @@ const App: React.FC = () => {
                   onBack={() => setCurrentView(View.TICKETS)}
                   onUpdateStatus={handleUpdateStatus}
                   onUpdateTicket={handleUpdateTicket}
+                  onNavigateToDevice={handleNavigateToDevice}
+                  onNavigateToCustomer={handleNavigateToCustomer}
                 />
               )}
               {currentView === View.DETAIL_CUSTOMER && selectedCustomer && (

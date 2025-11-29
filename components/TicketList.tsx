@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
-import { Ticket, TicketStatus, Severity } from '../types';
-import { STATUS_COLORS, SEVERITY_COLORS } from '../constants';
+import { Ticket, TicketStatus, Severity, Customer, Device } from '../types';
+import { STATUS_COLORS, SEVERITY_COLORS, MOCK_CUSTOMERS, MOCK_DEVICES } from '../constants';
 import { Search, Filter, AlertTriangle, Plus } from 'lucide-react';
 import CreateTicketModal from './CreateTicketModal';
 
@@ -29,6 +30,8 @@ const TicketList: React.FC<TicketListProps> = ({ tickets, onSelectTicket, onCrea
         isOpen={isCreateModalOpen} 
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={onCreateTicket}
+        customers={MOCK_CUSTOMERS as unknown as Customer[]} // In real app, pass from props
+        devices={MOCK_DEVICES as unknown as Device[]} // In real app, pass from props
       />
 
       {/* Filters and Actions */}
