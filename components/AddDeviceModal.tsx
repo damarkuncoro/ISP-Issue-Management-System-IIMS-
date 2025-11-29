@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { DeviceType, DeviceStatus, UserRole, Device } from '../types';
-import { X, Save, Server, Shield, Camera, FileCheck, AlertTriangle, CheckCircle, Zap, Info } from 'lucide-react';
+import { DeviceType, DeviceStatus, UserRole, Device, Customer } from '../types';
+import { X, Save, Server, Shield, Camera, FileCheck, AlertTriangle, CheckCircle, Zap, Info, User } from 'lucide-react';
 
 interface AddDeviceModalProps {
   isOpen: boolean;
@@ -9,6 +9,8 @@ interface AddDeviceModalProps {
   onUpdate?: (id: string, deviceData: any) => void;
   userRole: UserRole;
   device?: Device | null; // If provided, we are in Edit Mode
+  customers?: Customer[]; // List of customers for selection
+  preSelectedCustomerId?: string; // Auto select if adding from Customer Detail
 }
 
 // --- SMART VALIDATION DATABASE ---
@@ -26,7 +28,7 @@ const DEVICE_CATALOG: Record<string, { brand: string; wifi: 'Single' | 'Dual' | 
   'HUAWEI HG8240': { brand: 'Huawei', wifi: 'Single', max_speed: 1000, type: 'Bridge' },
 };
 
-const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubmit, onUpdate, userRole, device }) => {
+const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubmit, onUpdate, userRole, device, customers = [], preSelectedCustomerId }) => {
   const [formData, setFormData] = useState({
     name: '',
     type: DeviceType.ONU, // Default to ONU as it's the most common install
@@ -36,6 +38,7 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubm
     serial_number: '',
     location: '',
     installation_photo: '',
+    customer_id: '',
   });
 
   // --- INSTALLATION CONTEXT (Simulating Work Order Data) ---
@@ -61,6 +64,7 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubm
             serial_number: device.serial_number,
             location: device.location,
             installation_photo: device.installation_photo || '',
+            customer_id: device.customer_id || '',
         });
     } else {
         // Reset for Add Mode
@@ -73,10 +77,24 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubm
             serial_number: '',
             location: '',
             installation_photo: '',
+            customer_id: preSelectedCustomerId || '',
         });
+        
+        // Auto-fill location if customer is selected
+        if (preSelectedCustomerId && customers.length > 0) {
+            const cust = customers.find(c => c.id === preSelectedCustomerId);
+            if (cust) {
+                setFormData(prev => ({
+                    ...prev,
+                    location: cust.address,
+                    name: `ONU - ${cust.name}`
+                }));
+            }
+        }
+        
         setValidationMsg(null);
     }
-  }, [device, isOpen]);
+  }, [device, isOpen, preSelectedCustomerId, customers]);
 
   // --- SMART VALIDATION LOGIC ---
   useEffect(() => {
@@ -230,6 +248,24 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubm
                 </div>
             </div>
           )}
+
+          {/* CUSTOMER ASSIGNMENT */}
+          <div>
+             <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
+                <User size={14} /> Owner / Customer (Optional)
+             </label>
+             <select 
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-slate-100"
+                value={formData.customer_id}
+                onChange={e => setFormData({...formData, customer_id: e.target.value})}
+                disabled={!!preSelectedCustomerId} // Lock if adding from customer page
+             >
+                <option value="">-- No Customer Assigned (Backbone) --</option>
+                {customers.map(c => (
+                    <option key={c.id} value={c.id}>{c.name} ({c.id})</option>
+                ))}
+             </select>
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Hostname / Device Name</label>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Ticket as TicketIcon, Settings as SettingsIcon, Bell, Search, User, Menu, X, ChevronDown, Server, Users, DollarSign, Briefcase, CreditCard, LogOut, Calendar } from 'lucide-react';
+import { LayoutDashboard, Ticket as TicketIcon, Settings as SettingsIcon, Bell, Search, User, Menu, X, ChevronDown, Server, Users, DollarSign, Briefcase, CreditCard, LogOut, Calendar, FileText, Book } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TicketList from './components/TicketList';
 import TicketDetail from './components/TicketDetail';
@@ -16,8 +16,11 @@ import Settings from './components/Settings';
 import BillingList from './components/BillingList'; 
 import LoginScreen from './components/LoginScreen';
 import MaintenanceSchedule from './components/MaintenanceSchedule';
-import { MOCK_TICKETS, MOCK_DEVICES, MOCK_CUSTOMERS, MOCK_SERVICE_PLANS, MOCK_EMPLOYEES, MOCK_INVOICES, MOCK_MAINTENANCE } from './constants';
-import { Ticket, TicketStatus, ActivityLogEntry, Severity, UserRole, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, Invoice, InvoiceStatus, Maintenance, MaintenanceStatus } from './types';
+import AIAssistant from './components/AIAssistant'; 
+import Reports from './components/Reports';
+import KnowledgeBase from './components/KnowledgeBase';
+import { MOCK_TICKETS, MOCK_DEVICES, MOCK_CUSTOMERS, MOCK_SERVICE_PLANS, MOCK_EMPLOYEES, MOCK_INVOICES, MOCK_MAINTENANCE, MOCK_KB } from './constants';
+import { Ticket, TicketStatus, ActivityLogEntry, Severity, UserRole, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, Invoice, InvoiceStatus, Maintenance, MaintenanceStatus, KBArticle } from './types';
 import { generateTicketSummary } from './services/geminiService';
 
 enum View {
@@ -29,6 +32,8 @@ enum View {
   EMPLOYEES = 'employees',
   BILLING = 'billing', 
   MAINTENANCE = 'maintenance',
+  REPORTS = 'reports',
+  KNOWLEDGE_BASE = 'knowledge_base',
   DETAIL_TICKET = 'detail_ticket',
   DETAIL_CUSTOMER = 'detail_customer',
   DETAIL_EMPLOYEE = 'detail_employee',
@@ -50,6 +55,7 @@ const App: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>(MOCK_EMPLOYEES);
   const [invoices, setInvoices] = useState<Invoice[]>(MOCK_INVOICES); 
   const [maintenanceList, setMaintenanceList] = useState<Maintenance[]>(MOCK_MAINTENANCE);
+  const [kbArticles, setKbArticles] = useState<KBArticle[]>(MOCK_KB);
   
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -444,6 +450,7 @@ const App: React.FC = () => {
   const canManageEmployees = currentUserRole === UserRole.HRD || currentUserRole === UserRole.MANAGER;
   const canViewBilling = currentUserRole === UserRole.FINANCE || currentUserRole === UserRole.MANAGER || currentUserRole === UserRole.SALES;
   const canViewMaintenance = currentUserRole === UserRole.NOC || currentUserRole === UserRole.MANAGER || currentUserRole === UserRole.NETWORK || currentUserRole === UserRole.CS;
+  const canViewReports = currentUserRole === UserRole.MANAGER || currentUserRole === UserRole.FINANCE || currentUserRole === UserRole.NOC;
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -452,6 +459,13 @@ const App: React.FC = () => {
       <NotificationToast 
         notification={notification} 
         onClose={() => setNotification(null)} 
+      />
+
+      {/* Floating Copilot */}
+      <AIAssistant 
+        tickets={tickets} 
+        customers={customers} 
+        devices={devices} 
       />
 
       {/* Mobile Sidebar Overlay */}
@@ -488,6 +502,10 @@ const App: React.FC = () => {
             {canViewMaintenance && (
                 <NavItem view={View.MAINTENANCE} icon={<Calendar size={20} />} label="Maintenance" />
             )}
+            {canViewReports && (
+                <NavItem view={View.REPORTS} icon={<FileText size={20} />} label="Reports" />
+            )}
+            <NavItem view={View.KNOWLEDGE_BASE} icon={<Book size={20} />} label="Knowledge Base" />
             {canViewBilling && (
                 <NavItem view={View.BILLING} icon={<CreditCard size={20} />} label="Billing & Invoices" />
             )}
@@ -553,6 +571,8 @@ const App: React.FC = () => {
               {currentView === View.DEVICES && 'Device Inventory & Assets'}
               {(currentView === View.CUSTOMERS || currentView === View.DETAIL_CUSTOMER) && 'Customer Relationship'}
               {currentView === View.MAINTENANCE && 'Planned Maintenance'}
+              {currentView === View.REPORTS && 'System Reports & Analytics'}
+              {currentView === View.KNOWLEDGE_BASE && 'Technical Knowledge Base'}
               {currentView === View.BILLING && 'Finance & Billing'}
               {currentView === View.SERVICE_PLANS && 'Product & Plans'}
               {(currentView === View.EMPLOYEES || currentView === View.DETAIL_EMPLOYEE) && 'HR Information System'}
@@ -631,6 +651,7 @@ const App: React.FC = () => {
                 <DeviceInventory
                     devices={devices}
                     userRole={currentUserRole}
+                    customers={customers} // Pass customers list
                     onAddDevice={handleAddDevice}
                     onUpdateDevice={handleUpdateDevice}
                     onValidateDevice={handleValidateDevice}
@@ -653,6 +674,18 @@ const App: React.FC = () => {
                     userRole={currentUserRole}
                     onAddMaintenance={handleAddMaintenance}
                     onUpdateStatus={handleUpdateMaintenanceStatus}
+                />
+              )}
+              {currentView === View.REPORTS && (
+                <Reports
+                    tickets={tickets}
+                    customers={customers}
+                    invoices={invoices}
+                />
+              )}
+              {currentView === View.KNOWLEDGE_BASE && (
+                <KnowledgeBase
+                    articles={kbArticles}
                 />
               )}
               {currentView === View.BILLING && (
@@ -696,8 +729,11 @@ const App: React.FC = () => {
                     userRole={currentUserRole}
                     servicePlans={servicePlans}
                     invoices={invoices}
+                    devices={devices} // Pass devices for ticket creation
                     onBack={() => setCurrentView(View.CUSTOMERS)}
                     onUpdateCustomer={handleUpdateCustomer}
+                    onCreateTicket={handleCreateTicket} // Pass create ticket handler
+                    onAddDevice={handleAddDevice} // Pass add device handler
                 />
               )}
               {currentView === View.DETAIL_EMPLOYEE && selectedEmployee && (

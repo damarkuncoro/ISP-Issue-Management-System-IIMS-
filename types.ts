@@ -109,6 +109,7 @@ export interface Device {
   installed_by?: string;
   validated_by?: string;
   installation_photo?: string; // Mock URL or Base64
+  customer_id?: string; // Relation to Customer
 }
 
 // --- CUSTOMER TYPES ---
@@ -222,4 +223,17 @@ export interface Maintenance {
   status: MaintenanceStatus;
   type: 'Hardware Upgrade' | 'Software Patch' | 'Fiber Relocation' | 'Emergency';
   created_by: string;
+}
+
+// --- KNOWLEDGE BASE TYPES ---
+
+export interface KBArticle {
+  id: string;
+  title: string;
+  category: 'SOP' | 'Troubleshooting' | 'Policy' | 'Scripting';
+  content: string;
+  author: string;
+  last_updated: string;
+  tags: string[];
+  views: number;
 }

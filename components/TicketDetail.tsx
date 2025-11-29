@@ -6,7 +6,7 @@ import { AIAnalysisResult, analyzeTicketWithGemini } from '../services/geminiSer
 import { 
   ArrowLeft, MapPin, Server, Users, Clock, AlertTriangle, 
   CheckCircle, Play, UserPlus, PenTool, Sparkles, MessageSquare,
-  History, FileText, BrainCircuit, Activity, Link as LinkIcon
+  History, FileText, BrainCircuit, Activity, Link as LinkIcon, Send
 } from 'lucide-react';
 import AssignTicketModal from './AssignTicketModal';
 import ResolveTicketModal from './ResolveTicketModal';
@@ -33,6 +33,9 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
   const [activeTab, setActiveTab] = useState<'overview' | 'ai' | 'history'>('overview');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<AIAnalysisResult | null>(null);
+  
+  // Note State
+  const [noteText, setNoteText] = useState('');
   
   // Modal States
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -85,7 +88,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
       const newLogEntry: ActivityLogEntry = {
           id: `log-assign-${Date.now()}`,
           action: 'Ticket Assigned',
-          description: `Ticket assigned to ${employee.full_name} (${employee.position})`,
+          description: `Ticket assigned to ${employee.full_name} (${employee.position}).\nStatus updated to ${TicketStatus.ASSIGNED}.`,
           timestamp: timestamp,
           user: 'NOC Engineer'
       };
@@ -113,8 +116,6 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
       
       const updatedLogs = [newLogEntry, ...(ticket.activityLog || [])];
       
-      // Update ticket description or append notes? 
-      // Let's create a resolution summary block in description for now, or just rely on log
       const resolutionSummary = `\n\n--- RESOLUTION REPORT ---\nRoot Cause: ${data.rootCause}\nAction: ${data.actionTaken}\nCode: ${data.resolutionCode}\nNotes: ${data.notes}`;
 
       onUpdateTicket(ticket.id, {
@@ -122,6 +123,39 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
           activityLog: updatedLogs,
           description: ticket.description + resolutionSummary
       });
+  };
+
+  const handleAddNote = () => {
+    if (!noteText.trim()) return;
+
+    const timestamp = new Date().toISOString();
+    const newLogEntry: ActivityLogEntry = {
+        id: `log-note-${Date.now()}`,
+        action: 'Internal Note',
+        description: noteText,
+        timestamp: timestamp,
+        user: ticket.assignee || 'NOC Engineer'
+    };
+
+    const updatedLogs = [newLogEntry, ...(ticket.activityLog || [])];
+
+    onUpdateTicket(ticket.id, {
+        activityLog: updatedLogs
+    });
+
+    setNoteText('');
+    setActiveTab('history'); // Switch to history to show the note
+  };
+
+  const getActionColor = (action: string) => {
+    const lower = action.toLowerCase();
+    if (lower.includes('created')) return 'bg-slate-400 border-slate-200';
+    if (lower.includes('resolved') || lower.includes('closed')) return 'bg-green-500 border-green-200';
+    if (lower.includes('assigned')) return 'bg-orange-500 border-orange-200';
+    if (lower.includes('ai') || lower.includes('diagnostic')) return 'bg-indigo-500 border-indigo-200';
+    if (lower.includes('alert') || lower.includes('critical') || lower.includes('escalat')) return 'bg-red-500 border-red-200';
+    if (lower.includes('note')) return 'bg-blue-300 border-blue-100';
+    return 'bg-blue-500 border-blue-200';
   };
 
   const getNextActions = () => {
@@ -251,22 +285,46 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
 
           {/* TAB CONTENT: OVERVIEW */}
           {activeTab === 'overview' && (
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 animate-in fade-in">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                <MessageSquare size={18} className="text-blue-500" /> Description & Logs
-              </h3>
-              <div className="space-y-4">
-                <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                  <p className="text-slate-700 leading-relaxed whitespace-pre-line">{ticket.description}</p>
-                </div>
-                {ticket.logs && (
-                  <div>
-                     <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">System Logs</h4>
-                     <pre className="bg-slate-900 text-green-400 p-4 rounded-lg font-mono text-sm overflow-x-auto">
-                       {ticket.logs}
-                     </pre>
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 animate-in fade-in space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                  <MessageSquare size={18} className="text-blue-500" /> Description & Logs
+                </h3>
+                <div className="space-y-4">
+                  <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                    <p className="text-slate-700 leading-relaxed whitespace-pre-line">{ticket.description}</p>
                   </div>
-                )}
+                  {ticket.logs && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">System Logs</h4>
+                      <pre className="bg-slate-900 text-green-400 p-4 rounded-lg font-mono text-sm overflow-x-auto">
+                        {ticket.logs}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Add Note Section */}
+              <div className="pt-6 border-t border-slate-100">
+                 <label className="block text-sm font-medium text-slate-700 mb-2">Add Internal Note / Update</label>
+                 <div className="relative">
+                    <textarea 
+                        className="w-full border border-slate-300 rounded-lg p-3 pr-12 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        rows={2}
+                        placeholder="Type updates here (e.g. 'Customer called, verified power is on')..."
+                        value={noteText}
+                        onChange={(e) => setNoteText(e.target.value)}
+                    />
+                    <button 
+                        onClick={handleAddNote}
+                        disabled={!noteText.trim()}
+                        className="absolute bottom-2 right-2 p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                        <Send size={16} />
+                    </button>
+                 </div>
+                 <p className="text-xs text-slate-400 mt-2">Notes are added to the Activity History without changing ticket status.</p>
               </div>
             </div>
           )}
@@ -351,22 +409,31 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                 <div className="space-y-8 relative before:absolute before:inset-y-0 before:left-[19px] before:bg-slate-200 before:w-0.5 before:z-0">
                   {ticket.activityLog && ticket.activityLog.length > 0 ? (
                     ticket.activityLog.map((event) => (
-                      <div key={event.id} className="relative pl-10 z-10">
-                          <div className="absolute left-3 top-1 w-4 h-4 bg-white border-4 border-blue-500 rounded-full"></div>
-                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start bg-slate-50 p-3 rounded-lg border border-slate-100">
-                             <div>
-                                <h4 className="font-bold text-slate-800 text-sm">{event.action}</h4>
-                                <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{event.description}</p>
+                      <div key={event.id} className="relative pl-10 z-10 group">
+                          <div className={`absolute left-3 top-1 w-4 h-4 rounded-full border-4 ${getActionColor(event.action)}`}></div>
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start bg-slate-50 p-4 rounded-lg border border-slate-100 hover:border-blue-100 hover:shadow-sm transition">
+                             <div className="flex-1 mr-4">
+                                <h4 className="font-bold text-slate-800 text-sm mb-1">{event.action}</h4>
+                                <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{event.description}</p>
                              </div>
-                             <div className="text-right mt-2 sm:mt-0 flex-shrink-0">
-                                <p className="text-xs font-mono text-slate-500">{new Date(event.timestamp).toLocaleString()}</p>
-                                <p className="text-xs uppercase font-bold text-blue-600 mt-1">{event.user}</p>
+                             <div className="text-right mt-2 sm:mt-0 flex-shrink-0 min-w-[120px]">
+                                <p className="text-xs font-mono text-slate-500 bg-white px-2 py-1 rounded border border-slate-200 inline-block mb-1">
+                                    {new Date(event.timestamp).toLocaleString()}
+                                </p>
+                                <div className="flex justify-end items-center gap-1.5 mt-1">
+                                    <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600 uppercase">
+                                        {event.user.charAt(0)}
+                                    </div>
+                                    <p className="text-xs font-semibold text-slate-700">{event.user}</p>
+                                </div>
                              </div>
                           </div>
                       </div>
                     ))
                   ) : (
-                    <p className="text-sm text-slate-400 italic pl-10">No activity logged.</p>
+                    <div className="text-center py-8 pl-8">
+                        <p className="text-sm text-slate-400 italic">No activity logged yet.</p>
+                    </div>
                   )}
                 </div>
              </div>

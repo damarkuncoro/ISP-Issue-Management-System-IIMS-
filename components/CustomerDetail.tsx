@@ -1,19 +1,36 @@
 import React, { useState } from 'react';
-import { Customer, UserRole, CustomerStatus, ServicePlan, Invoice, InvoiceStatus } from '../types';
-import { ArrowLeft, User, MapPin, Phone, Mail, FileText, Server, Shield, CreditCard, Activity, Edit, Download, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Customer, UserRole, CustomerStatus, ServicePlan, Invoice, InvoiceStatus, Device, DeviceStatus } from '../types';
+import { ArrowLeft, User, MapPin, Phone, Mail, FileText, Server, Shield, CreditCard, Activity, Edit, Download, CheckCircle, Clock, AlertCircle, Ticket as TicketIcon, Router, Plus } from 'lucide-react';
 import EditCustomerModal from './EditCustomerModal';
+import CreateTicketModal from './CreateTicketModal';
+import AddDeviceModal from './AddDeviceModal';
 
 interface CustomerDetailProps {
   customer: Customer;
   userRole: UserRole;
   servicePlans: ServicePlan[];
-  invoices?: Invoice[]; // Add invoices prop
+  invoices?: Invoice[];
+  devices?: Device[]; // Needed for Create Ticket Modal and Device List
   onBack: () => void;
   onUpdateCustomer: (id: string, data: any) => void;
+  onCreateTicket?: (ticketData: any) => void;
+  onAddDevice?: (deviceData: any) => void; // New Prop
 }
 
-const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, userRole, servicePlans, invoices = [], onBack, onUpdateCustomer }) => {
+const CustomerDetail: React.FC<CustomerDetailProps> = ({ 
+    customer, 
+    userRole, 
+    servicePlans, 
+    invoices = [], 
+    devices = [],
+    onBack, 
+    onUpdateCustomer,
+    onCreateTicket,
+    onAddDevice
+}) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+  const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'billing'>('profile');
 
   // --- PERMISSION LOGIC ---
@@ -23,16 +40,24 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, userRole, ser
   const isProvisioning = userRole === UserRole.PROVISIONING;
   const isSales = userRole === UserRole.SALES;
   const isFinance = userRole === UserRole.FINANCE;
+  const isHelpdesk = userRole === UserRole.HELPDESK;
+  const isField = userRole === UserRole.FIELD;
 
   // Edit Permission: Anyone who can see details can usually request an edit, 
   // but the Modal handles specifically what they can touch.
   const canOpenEdit = isManager || isCS || isSales || isProvisioning || isNOC || isFinance;
 
+  // Ticket Creation Permission
+  const canCreateTicket = isManager || isCS || isHelpdesk || isNOC || isSales;
+
+  // Device Mgmt Permission
+  const canAddDevice = isManager || isNOC || isField || isProvisioning;
+
   // Personal Info Visibility
-  const canViewPersonal = isManager || isCS || isSales || isProvisioning || isFinance;
+  const canViewPersonal = isManager || isCS || isSales || isProvisioning || isFinance || isHelpdesk || isField;
 
   // Technical Info Visibility
-  const canViewTechnical = isManager || isNOC || isProvisioning;
+  const canViewTechnical = isManager || isNOC || isProvisioning || isField;
 
   const renderObfuscated = (text: string) => (
     <span className="font-mono text-slate-400 tracking-widest">••••••••••</span>
@@ -61,6 +86,21 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, userRole, ser
   };
 
   const customerInvoices = invoices.filter(inv => inv.customer_id === customer.id);
+  const customerDevices = devices.filter(d => d.customer_id === customer.id);
+
+  const handleTicketSubmit = (data: any) => {
+      if (onCreateTicket) {
+          onCreateTicket(data);
+      }
+      setIsTicketModalOpen(false);
+  };
+
+  const handleDeviceSubmit = (data: any) => {
+      if (onAddDevice) {
+          onAddDevice(data);
+      }
+      setIsDeviceModalOpen(false);
+  }
 
   return (
     <div className="space-y-6 animate-in slide-in-from-right duration-300">
@@ -74,6 +114,28 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, userRole, ser
           servicePlans={servicePlans}
           onUpdate={onUpdateCustomer}
         />
+      )}
+
+      {isTicketModalOpen && onCreateTicket && (
+          <CreateTicketModal 
+            isOpen={isTicketModalOpen}
+            onClose={() => setIsTicketModalOpen(false)}
+            onSubmit={handleTicketSubmit}
+            customers={[customer]} // Only relevant to this customer
+            devices={devices}
+            preSelectedCustomer={customer}
+          />
+      )}
+
+      {isDeviceModalOpen && onAddDevice && (
+          <AddDeviceModal
+            isOpen={isDeviceModalOpen}
+            onClose={() => setIsDeviceModalOpen(false)}
+            onSubmit={handleDeviceSubmit}
+            userRole={userRole}
+            customers={[customer]} // Pass just this customer for auto-select logic
+            preSelectedCustomerId={customer.id}
+          />
       )}
 
       {/* Header */}
@@ -91,14 +153,25 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, userRole, ser
           <p className="text-slate-500 font-mono text-sm">{customer.id}</p>
         </div>
         
-        {canOpenEdit && (
-            <button 
-                onClick={() => setIsEditModalOpen(true)}
-                className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg flex items-center gap-2 transition shadow-sm font-medium"
-            >
-                <Edit size={16} /> Edit Customer
-            </button>
-        )}
+        <div className="flex gap-2">
+            {canCreateTicket && onCreateTicket && (
+                <button 
+                    onClick={() => setIsTicketModalOpen(true)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition shadow-sm font-medium"
+                >
+                    <TicketIcon size={16} /> Create Ticket
+                </button>
+            )}
+            
+            {canOpenEdit && (
+                <button 
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg flex items-center gap-2 transition shadow-sm font-medium"
+                >
+                    <Edit size={16} /> Edit Customer
+                </button>
+            )}
+        </div>
       </div>
 
       {/* Tab Nav */}
@@ -182,51 +255,78 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({ customer, userRole, ser
                     </div>
                 </div>
              )}
-             <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <Server size={20} className="text-indigo-600" /> Network Configuration
-             </h3>
+             <div className="flex justify-between items-center mb-4">
+                 <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <Server size={20} className="text-indigo-600" /> Network Configuration
+                 </h3>
+                 {canAddDevice && onAddDevice && (
+                     <button onClick={() => setIsDeviceModalOpen(true)} className="text-xs flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded transition">
+                         <Plus size={14} /> Add Device
+                     </button>
+                 )}
+             </div>
              
-             {customer.status !== CustomerStatus.ACTIVE && customer.status !== CustomerStatus.VERIFIED ? (
-                 <div className="p-4 bg-slate-50 rounded-lg text-slate-500 text-center italic">
-                    Service not yet provisioned.
-                 </div>
-             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12">
-                    <div>
-                        <label className="text-xs font-semibold text-slate-400 uppercase block mb-1">PPPoE Credentials</label>
-                        <div className="bg-slate-50 p-3 rounded border border-slate-200">
-                            <div className="flex justify-between text-sm mb-1">
-                                <span className="text-slate-500">Username:</span>
-                                <span className="font-mono font-medium">{customer.pppoe_username || '-'}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-slate-500">Password:</span>
-                                <span className="font-mono text-slate-400">••••••••</span>
-                            </div>
+             {/* Logical Config (PPPoE/IP) */}
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12 mb-6 border-b border-slate-100 pb-6">
+                <div>
+                    <label className="text-xs font-semibold text-slate-400 uppercase block mb-1">PPPoE Credentials</label>
+                    <div className="bg-slate-50 p-3 rounded border border-slate-200">
+                        <div className="flex justify-between text-sm mb-1">
+                            <span className="text-slate-500">Username:</span>
+                            <span className="font-mono font-medium">{customer.pppoe_username || '-'}</span>
                         </div>
-                    </div>
-                    <div>
-                         <label className="text-xs font-semibold text-slate-400 uppercase block mb-1">IP Allocation</label>
-                         <div className="bg-slate-50 p-3 rounded border border-slate-200">
-                            <div className="flex justify-between text-sm mb-1">
-                                <span className="text-slate-500">IP Address:</span>
-                                <span className="font-mono font-medium text-indigo-700">{customer.ip_address || '-'}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-slate-500">VLAN ID:</span>
-                                <span className="font-mono font-medium">{customer.vlan_id || '-'}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div>
-                        <label className="text-xs font-semibold text-slate-400 uppercase block mb-1">Hardware (ONU/ONT)</label>
-                        <div className="text-sm space-y-1">
-                            <p><span className="text-slate-500 w-24 inline-block">MAC Addr:</span> <span className="font-mono uppercase">{customer.onu_mac || '-'}</span></p>
-                            <p><span className="text-slate-500 w-24 inline-block">OLT Port:</span> <span className="font-mono">{customer.olt_port || '-'}</span></p>
+                        <div className="flex justify-between text-sm">
+                            <span className="text-slate-500">Password:</span>
+                            <span className="font-mono text-slate-400">••••••••</span>
                         </div>
                     </div>
                 </div>
-             )}
+                <div>
+                     <label className="text-xs font-semibold text-slate-400 uppercase block mb-1">IP Allocation</label>
+                     <div className="bg-slate-50 p-3 rounded border border-slate-200">
+                        <div className="flex justify-between text-sm mb-1">
+                            <span className="text-slate-500">IP Address:</span>
+                            <span className="font-mono font-medium text-indigo-700">{customer.ip_address || '-'}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                            <span className="text-slate-500">VLAN ID:</span>
+                            <span className="font-mono font-medium">{customer.vlan_id || '-'}</span>
+                        </div>
+                    </div>
+                </div>
+             </div>
+
+             {/* Physical Devices List */}
+             <div>
+                 <label className="text-xs font-semibold text-slate-400 uppercase block mb-3">Linked Devices (CPE)</label>
+                 {customerDevices.length > 0 ? (
+                     <div className="space-y-3">
+                         {customerDevices.map(device => (
+                             <div key={device.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg hover:border-indigo-300 transition">
+                                 <div className="flex items-center gap-3">
+                                     <div className={`p-2 rounded-lg ${device.status === DeviceStatus.ACTIVE ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-500'}`}>
+                                         <Router size={18} />
+                                     </div>
+                                     <div>
+                                         <p className="font-bold text-slate-800 text-sm">{device.name}</p>
+                                         <p className="text-xs text-slate-500">{device.model} • SN: {device.serial_number}</p>
+                                     </div>
+                                 </div>
+                                 <div className="text-right">
+                                     <p className="text-xs font-mono text-indigo-600">{device.ip_address || 'No IP'}</p>
+                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${device.status === DeviceStatus.ACTIVE ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                         {device.status}
+                                     </span>
+                                 </div>
+                             </div>
+                         ))}
+                     </div>
+                 ) : (
+                     <div className="text-sm text-slate-500 italic bg-slate-50 p-4 rounded-lg text-center">
+                         No physical devices linked to this account.
+                     </div>
+                 )}
+             </div>
           </div>
         </div>
 

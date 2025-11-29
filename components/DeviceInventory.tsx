@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
-import { Device, DeviceStatus, UserRole } from '../types';
-import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon } from 'lucide-react';
+import { Device, DeviceStatus, UserRole, Customer } from '../types';
+import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User } from 'lucide-react';
 import AddDeviceModal from './AddDeviceModal';
 
 interface DeviceInventoryProps {
   devices: Device[];
   userRole: UserRole;
+  customers?: Customer[]; // Added prop
   onAddDevice: (device: any) => void;
   onUpdateDevice: (id: string, device: any) => void;
   onValidateDevice: (id: string) => void;
 }
 
-const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, onAddDevice, onUpdateDevice, onValidateDevice }) => {
+const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, customers = [], onAddDevice, onUpdateDevice, onValidateDevice }) => {
   const [filterText, setFilterText] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
@@ -19,7 +20,8 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, on
   const filteredDevices = devices.filter(d => 
     d.name.toLowerCase().includes(filterText.toLowerCase()) ||
     d.ip_address.includes(filterText) ||
-    d.location.toLowerCase().includes(filterText.toLowerCase())
+    d.location.toLowerCase().includes(filterText.toLowerCase()) ||
+    d.serial_number.toLowerCase().includes(filterText.toLowerCase())
   );
 
   const canValidate = userRole === UserRole.NETWORK || userRole === UserRole.INVENTORY_ADMIN || userRole === UserRole.NOC;
@@ -61,6 +63,12 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, on
       }
   };
 
+  const getCustomerName = (custId?: string) => {
+      if (!custId) return null;
+      const c = customers.find(x => x.id === custId);
+      return c ? c.name : custId;
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <AddDeviceModal 
@@ -70,6 +78,7 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, on
         onUpdate={(id, data) => handleModalSubmit(data)} // Redirect update to same wrapper
         userRole={userRole}
         device={editingDevice}
+        customers={customers}
       />
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -94,7 +103,7 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, on
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
                 <input 
                     type="text" 
-                    placeholder="Search by Hostname, IP, or Location..." 
+                    placeholder="Search by Hostname, IP, SN or Location..." 
                     className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
                     value={filterText}
                     onChange={(e) => setFilterText(e.target.value)}
@@ -117,7 +126,7 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, on
                          <th className="px-6 py-4">Device Info</th>
                          <th className="px-6 py-4">Type & Model</th>
                          <th className="px-6 py-4">Network Details</th>
-                         <th className="px-6 py-4">Location</th>
+                         <th className="px-6 py-4">Location & Owner</th>
                          <th className="px-6 py-4">Status</th>
                          <th className="px-6 py-4">Action</th>
                      </tr>
@@ -150,10 +159,15 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, on
                                  <div className="text-slate-500">{device.mac_address}</div>
                              </td>
                              <td className="px-6 py-4">
-                                 <div className="flex items-center gap-1.5 text-slate-700">
+                                 <div className="flex items-center gap-1.5 text-slate-700 mb-1">
                                      <MapPin size={14} className="text-slate-400" />
                                      {device.location}
                                  </div>
+                                 {device.customer_id && (
+                                     <div className="flex items-center gap-1.5 text-xs text-slate-500 bg-slate-50 w-fit px-1.5 py-0.5 rounded">
+                                         <User size={10} /> {getCustomerName(device.customer_id)}
+                                     </div>
+                                 )}
                              </td>
                              <td className="px-6 py-4">
                                  {device.status === DeviceStatus.ACTIVE ? (

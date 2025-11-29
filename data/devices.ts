@@ -37,5 +37,20 @@ export const devicesData = [
     "status": "Pending Validation",
     "last_updated": "2025-11-28T11:00:00",
     "installed_by": "Field Tech - Budi"
+  },
+  {
+    "id": "ONU-250045",
+    "name": "ONU Budi Santoso",
+    "type": "ONU",
+    "model": "ZTE F609",
+    "ip_address": "10.20.30.45",
+    "mac_address": "AA:BB:CC:11:22:33",
+    "serial_number": "ZTEGC0FFEE12",
+    "location": "Perum Bekasi Jaya Blok A4",
+    "status": "Active",
+    "last_updated": "2025-11-28T12:00:00",
+    "installed_by": "Field Tech - Budi",
+    "validated_by": "Network Engineer",
+    "customer_id": "CID-250045"
   }
 ];

@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Ticket } from "../types";
+import { Ticket, Device, Customer } from "../types";
 
 const apiKey = process.env.API_KEY || ''; // Ensure API key is available
 const ai = new GoogleGenAI({ apiKey });
@@ -81,5 +81,58 @@ export const generateTicketSummary = async (tickets: Ticket[]): Promise<string> 
     return response.text || "System is stable.";
   } catch (error) {
     return "Unable to generate summary.";
+  }
+};
+
+interface SystemContext {
+  tickets: Ticket[];
+  devices: Device[];
+  customers: Customer[];
+}
+
+export const chatWithCopilot = async (message: string, context: SystemContext, history: {role: string, parts: {text: string}[]}[]): Promise<string> => {
+  try {
+    // condense context to save tokens and focus on summary
+    const ticketSummary = context.tickets.map(t => `${t.id}: ${t.title} (${t.status}, ${t.severity})`).join('\n');
+    const deviceSummary = `Total Devices: ${context.devices.length}, Offline/Maintenance: ${context.devices.filter(d => d.status !== 'Active').length}`;
+    const customerSummary = `Total Customers: ${context.customers.length}, Active: ${context.customers.filter(c => c.status === 'Active').length}`;
+
+    const systemInstruction = `
+      You are "ISP Copilot", an AI assistant for the ISP Issue Management System.
+      You have access to the current system state.
+      
+      Current System Context:
+      [TICKETS]
+      ${ticketSummary}
+      
+      [STATS]
+      ${deviceSummary}
+      ${customerSummary}
+
+      Rules:
+      1. Answer questions based on the context provided.
+      2. If asked to draft emails or messages, use a professional tone.
+      3. Be concise and helpful for NOC engineers and Support staff.
+      4. If you don't know something that isn't in the context, say so.
+    `;
+
+    // We use a stateless call for simplicity here, but constructing a chat session is better.
+    // However, since we need to inject dynamic context every time (as tickets update), 
+    // we'll prepend the system instruction + context to the conversation.
+
+    const chatSession = ai.chats.create({
+      model: "gemini-2.5-flash",
+      config: {
+        systemInstruction: systemInstruction,
+      },
+      history: history
+    });
+
+    const response = await chatSession.sendMessage({ message });
+    return response.text || "I'm having trouble processing that request.";
+
+  } catch (error) {
+    console.error("Copilot Error:", error);
+    return "Sorry, I am currently offline or encountered an error.";
   }
 };
