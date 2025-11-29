@@ -202,7 +202,7 @@ const App: React.FC = () => {
             id: `log-alert-${Date.now()}`,
             action: 'Automated Escalation',
             description: `Sent [CRITICAL] WhatsApp Alert to NOC_L3_OnCall (0812-XXXX-XXXX) & Email to manager@isp.com`,
-            timestamp: new Date(Date.now() + 500).toISOString(), // slight delay in log
+            timestamp: new Date(Date.now() + 500).toISOString(), // slight delay
             user: 'System Bot'
         });
     } else {
@@ -503,19 +503,32 @@ const App: React.FC = () => {
       );
   }
 
-  const NavItem = ({ view, icon, label }: { view: View, icon: React.ReactNode, label: string }) => (
-    <button 
-      onClick={() => { setCurrentView(view); setIsSidebarOpen(false); }}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-        currentView === view || (view === View.TICKETS && currentView === View.DETAIL_TICKET) || (view === View.CUSTOMERS && currentView === View.DETAIL_CUSTOMER) || (view === View.EMPLOYEES && currentView === View.DETAIL_EMPLOYEE) || (view === View.DEVICES && currentView === View.DETAIL_DEVICE)
-          ? 'bg-blue-600 text-white shadow-md' 
-          : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-      }`}
-    >
-      {icon}
-      <span className="font-medium">{label}</span>
-    </button>
-  );
+  const checkIsActive = (view: View) => {
+      if (currentView === view) return true;
+      // Handle Detail Views keeping parent nav active
+      if (view === View.TICKETS && currentView === View.DETAIL_TICKET) return true;
+      if (view === View.CUSTOMERS && currentView === View.DETAIL_CUSTOMER) return true;
+      if (view === View.DEVICES && currentView === View.DETAIL_DEVICE) return true;
+      if (view === View.EMPLOYEES && currentView === View.DETAIL_EMPLOYEE) return true;
+      return false;
+  };
+
+  const NavItem = ({ view, icon, label }: { view: View, icon: React.ReactNode, label: string }) => {
+    const isActive = checkIsActive(view);
+    return (
+        <button 
+        onClick={() => { setCurrentView(view); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+            isActive
+            ? 'bg-blue-600 text-white shadow-md' 
+            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+        }`}
+        >
+        {icon}
+        <span className="font-medium">{label}</span>
+        </button>
+    );
+  };
 
   const canManagePlans = currentUserRole === UserRole.PRODUCT_MANAGER || currentUserRole === UserRole.MANAGER;
   const canManageEmployees = currentUserRole === UserRole.HRD || currentUserRole === UserRole.MANAGER;
@@ -554,7 +567,7 @@ const App: React.FC = () => {
       `}>
         <div className="h-full flex flex-col">
           {/* Logo */}
-          <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+          <div className="p-6 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
              <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center font-bold text-white">I</div>
                 <h1 className="text-xl font-bold tracking-tight">ISP Issue<span className="text-blue-500">Manager</span></h1>
@@ -564,8 +577,8 @@ const App: React.FC = () => {
              </button>
           </div>
 
-          {/* Nav */}
-          <nav className="flex-1 p-4 space-y-2">
+          {/* Nav - SCROLLABLE AREA */}
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
             <NavItem view={View.DASHBOARD} icon={<LayoutDashboard size={20} />} label="Dashboard" />
             <NavItem view={View.TICKETS} icon={<TicketIcon size={20} />} label="Issue Tickets" />
             <NavItem view={View.DEVICES} icon={<Server size={20} />} label="Inventory & Topology" />
@@ -589,8 +602,8 @@ const App: React.FC = () => {
             <NavItem view={View.SETTINGS} icon={<SettingsIcon size={20} />} label="Settings" />
           </nav>
 
-          {/* User Profile / Role Switcher */}
-          <div className="p-4 border-t border-slate-800 bg-slate-900">
+          {/* User Profile / Role Switcher - FIXED BOTTOM */}
+          <div className="p-4 border-t border-slate-800 bg-slate-900 flex-shrink-0">
              
              {/* Demo Role Switcher */}
              <div className="flex flex-col gap-2 mb-4 bg-slate-800/50 p-2 rounded-lg border border-slate-700">

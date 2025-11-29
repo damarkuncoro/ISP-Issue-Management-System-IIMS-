@@ -1,9 +1,10 @@
 
 import React, { useState } from 'react';
 import { Device, DeviceStatus, Ticket, UserRole, Customer } from '../types';
-import { ArrowLeft, Server, MapPin, Shield, Activity, Network, Users, Ticket as TicketIcon, Edit, Clock, Settings, CheckCircle, Boxes } from 'lucide-react';
+import { ArrowLeft, Server, MapPin, Shield, Activity, Network, Users, Ticket as TicketIcon, Edit, Clock, Settings, CheckCircle, Boxes, Terminal } from 'lucide-react';
 import LiveTrafficChart from './LiveTrafficChart';
 import AddDeviceModal from './AddDeviceModal';
+import WebTerminal from './WebTerminal';
 
 interface DeviceDetailProps {
   device: Device;
@@ -29,7 +30,7 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
     onNavigateToDevice
 }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'traffic' | 'topology' | 'history' | 'pon_ports'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'traffic' | 'topology' | 'history' | 'pon_ports' | 'terminal'>('overview');
 
   // Logic
   const connectedDownstream = allDevices.filter(d => d.uplink_device_id === device.id);
@@ -40,6 +41,9 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
   const isOLT = device.type === 'OLT';
 
   const canEdit = userRole === UserRole.NETWORK || userRole === UserRole.NOC || userRole === UserRole.INVENTORY_ADMIN || userRole === UserRole.MANAGER;
+  
+  // Only Network Engineers and NOC can access the CLI
+  const canAccessTerminal = userRole === UserRole.NETWORK || userRole === UserRole.NOC || userRole === UserRole.MANAGER;
 
   const handleUpdate = (data: any) => {
       onUpdateDevice(device.id, data);
@@ -122,16 +126,17 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
 
       {/* Tabs */}
       <div className="flex gap-4 border-b border-slate-200 overflow-x-auto">
-          {['overview', 'traffic', 'topology', isOLT ? 'pon_ports' : null, 'history'].filter(Boolean).map((tab) => (
+          {['overview', 'traffic', 'topology', isOLT ? 'pon_ports' : null, 'history', canAccessTerminal ? 'terminal' : null].filter(Boolean).map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition capitalize whitespace-nowrap ${
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition capitalize whitespace-nowrap flex items-center gap-2 ${
                     activeTab === tab 
                     ? 'border-blue-600 text-blue-600' 
                     : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
               >
+                 {tab === 'terminal' && <Terminal size={14} />}
                  {tab?.replace('_', ' ')}
               </button>
           ))}
@@ -385,6 +390,21 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
                       ))}
                   </div>
               )}
+          </div>
+      )}
+
+      {/* TERMINAL TAB */}
+      {activeTab === 'terminal' && canAccessTerminal && (
+          <div className="animate-in fade-in">
+              <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg mb-4 text-xs text-blue-800 flex items-center gap-2">
+                  <Shield size={14} />
+                  <span>Use CLI for advanced diagnostics. All commands are logged for audit purposes.</span>
+              </div>
+              <WebTerminal 
+                  deviceName={device.name} 
+                  ipAddress={device.ip_address || '192.168.1.1'}
+                  model={device.model}
+              />
           </div>
       )}
 
