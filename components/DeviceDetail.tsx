@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Device, DeviceStatus, Ticket, UserRole, Customer, DeviceType } from '../types';
-import { ArrowLeft, Server, MapPin, Shield, Activity, Network, Users, Ticket as TicketIcon, Edit, Clock, Settings, CheckCircle, Boxes, Terminal, Box } from 'lucide-react';
+import { ArrowLeft, Server, MapPin, Shield, Activity, Network, Users, Ticket as TicketIcon, Edit, Clock, Settings, CheckCircle, Boxes, Terminal, Box, ChevronRight, X, Play } from 'lucide-react';
 import LiveTrafficChart from './LiveTrafficChart';
 import AddDeviceModal from './AddDeviceModal';
 import WebTerminal from './WebTerminal';
@@ -31,6 +31,7 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
     onNavigateToDevice
 }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isPingModalOpen, setIsPingModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'traffic' | 'topology' | 'history' | 'pon_ports' | 'terminal' | 'odp_ports'>('overview');
 
   // Logic
@@ -40,8 +41,8 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
   const linkedCustomer = customers.find(c => c.id === device.customer_id);
 
   const isOLT = device.type === DeviceType.OLT;
-  const isODP = device.type === DeviceType.ODP;
-  const isPassive = isODP || device.type === DeviceType.ODC;
+  const isODP = device.type === DeviceType.ODP || device.type === 'ODP (Passive)';
+  const isPassive = isODP || device.type === DeviceType.ODC || device.type === 'ODC (Passive)';
 
   const canEdit = userRole === UserRole.NETWORK || userRole === UserRole.NOC || userRole === UserRole.INVENTORY_ADMIN || userRole === UserRole.MANAGER;
   
@@ -52,6 +53,23 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
       onUpdateDevice(device.id, data);
       setIsEditModalOpen(false);
   };
+
+  // Upstream Trace
+  const getUpstreamPath = (startDevice: Device): Device[] => {
+      const path: Device[] = [];
+      let curr: Device | undefined = startDevice;
+      while (curr && curr.uplink_device_id) {
+          const parent = allDevices.find(d => d.id === curr!.uplink_device_id);
+          if (parent) {
+              path.unshift(parent);
+              curr = parent;
+          } else {
+              break;
+          }
+      }
+      return path;
+  };
+  const upstreamPath = getUpstreamPath(device);
 
   // Helper for OLT PON Viz
   const getPonPorts = () => {
@@ -85,9 +103,59 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
 
   const ponPorts = isOLT ? getPonPorts() : [];
 
+  // --- PING MODAL COMPONENT ---
+  const PingModal = () => {
+      const [pingLogs, setPingLogs] = useState<string[]>([]);
+      const [pingStatus, setPingStatus] = useState<'IDLE' | 'RUNNING' | 'COMPLETE'>('IDLE');
+
+      const runPing = async () => {
+          setPingStatus('RUNNING');
+          setPingLogs([`Pinging ${device.ip_address} with 32 bytes of data:`]);
+          
+          for (let i = 0; i < 4; i++) {
+              await new Promise(r => setTimeout(r, 800));
+              const time = Math.floor(Math.random() * 10 + 2);
+              setPingLogs(prev => [...prev, `Reply from ${device.ip_address}: bytes=32 time=${time}ms TTL=64`]);
+          }
+          await new Promise(r => setTimeout(r, 500));
+          setPingLogs(prev => [...prev, '', `Ping statistics for ${device.ip_address}:`, '    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss)']);
+          setPingStatus('COMPLETE');
+      };
+
+      if (!isPingModalOpen) return null;
+
+      return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+                  <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                      <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                          <Activity size={18} className="text-blue-600" /> Diagnostic Tool
+                      </h4>
+                      <button onClick={() => setIsPingModalOpen(false)}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+                  </div>
+                  <div className="p-4 bg-slate-900 h-64 overflow-y-auto font-mono text-xs text-green-400">
+                      {pingLogs.length === 0 && <span className="text-slate-500">Ready to start...</span>}
+                      {pingLogs.map((log, i) => <div key={i}>{log}</div>)}
+                  </div>
+                  <div className="p-4 border-t border-slate-100 flex justify-end">
+                      <button 
+                        onClick={runPing} 
+                        disabled={pingStatus === 'RUNNING'}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50"
+                      >
+                          <Play size={16} /> {pingStatus === 'RUNNING' ? 'Pinging...' : 'Start Ping'}
+                      </button>
+                  </div>
+              </div>
+          </div>
+      );
+  };
+
   return (
     <div className="space-y-6 animate-in slide-in-from-right duration-300">
       
+      <PingModal />
+
       {/* Edit Modal */}
       {isEditModalOpen && (
           <AddDeviceModal 
@@ -269,7 +337,10 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
                                 <button className="w-full text-left px-3 py-2 bg-white border border-slate-200 rounded text-sm hover:border-blue-400 hover:text-blue-600 transition flex items-center gap-2">
                                     <Settings size={14} /> Web Config (Remote)
                                 </button>
-                                <button className="w-full text-left px-3 py-2 bg-white border border-slate-200 rounded text-sm hover:border-blue-400 hover:text-blue-600 transition flex items-center gap-2">
+                                <button 
+                                    onClick={() => setIsPingModalOpen(true)}
+                                    className="w-full text-left px-3 py-2 bg-white border border-slate-200 rounded text-sm hover:border-blue-400 hover:text-blue-600 transition flex items-center gap-2"
+                                >
                                     <Activity size={14} /> Ping Test
                                 </button>
                               </>
@@ -381,7 +452,37 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
 
       {/* TOPOLOGY TAB */}
       {activeTab === 'topology' && (
-          <div className="animate-in fade-in">
+          <div className="animate-in fade-in space-y-6">
+              
+              {/* UPSTREAM PATH VISUALIZATION */}
+              {upstreamPath.length > 0 && (
+                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 overflow-x-auto">
+                      <h4 className="font-bold text-slate-700 text-xs uppercase mb-3 flex items-center gap-2">
+                          <Network size={14} className="text-blue-500" /> Upstream Path (To Core)
+                      </h4>
+                      <div className="flex items-center gap-2 text-sm min-w-max">
+                          {upstreamPath.map((d, i) => (
+                              <div key={d.id} className="flex items-center">
+                                  <div 
+                                    className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer hover:border-blue-400 transition"
+                                    onClick={() => onNavigateToDevice(d.id)}
+                                  >
+                                      <div className={`w-2 h-2 rounded-full ${d.status === DeviceStatus.ACTIVE ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                      <span className="font-medium text-slate-700">{d.name}</span>
+                                      <span className="text-xs text-slate-400 font-mono">({d.type})</span>
+                                  </div>
+                                  {i < upstreamPath.length && (
+                                      <ChevronRight size={16} className="text-slate-400 mx-1" />
+                                  )}
+                              </div>
+                          ))}
+                          <div className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-medium text-xs">
+                              Current
+                          </div>
+                      </div>
+                  </div>
+              )}
+
               <NetworkTopologyTree 
                   devices={allDevices}
                   rootDevice={device}

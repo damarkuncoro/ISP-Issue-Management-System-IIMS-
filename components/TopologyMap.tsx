@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import { Ticket, Severity, TicketStatus, Device, DeviceStatus, DeviceType } from '../types';
 
@@ -74,13 +75,22 @@ const TopologyMap: React.FC<TopologyMapProps> = ({ tickets = [], devices = [] })
             // Choose shape/color based on Device Type
             let color = '#3b82f6'; // Blue
             let shape = 'square';
+            let label = device.type;
             
             if (device.type === DeviceType.ROUTER) { color = '#6366f1'; shape = 'diamond'; } // Indigo
             if (device.type === DeviceType.OLT) { color = '#8b5cf6'; shape = 'square'; } // Purple
             if (device.type === DeviceType.SWITCH) { color = '#0ea5e9'; shape = 'circle'; } // Sky
             if (device.type === DeviceType.ONU) { color = '#10b981'; shape = 'circle'; } // Green
+            if (device.type === DeviceType.ODP || device.type === 'ODP (Passive)') { color = '#ec4899'; shape = 'triangle'; label = 'ODP'; } // Pink
+            if (device.type === DeviceType.ODC || device.type === 'ODC (Passive)') { color = '#64748b'; shape = 'square'; label = 'ODC'; } // Slate
 
             if (device.status !== DeviceStatus.ACTIVE) color = '#94a3b8'; // Grey if offline
+
+            // Custom Icon HTML
+            let iconShapeStyle = '';
+            if (shape === 'circle') iconShapeStyle = 'border-radius: 50%;';
+            if (shape === 'diamond') iconShapeStyle = 'transform: rotate(45deg);';
+            if (shape === 'triangle') iconShapeStyle = 'clip-path: polygon(50% 0%, 0% 100%, 100% 100%); width: 14px; height: 12px; border: none;';
 
             const iconHtml = `
                 <div style="
@@ -88,8 +98,7 @@ const TopologyMap: React.FC<TopologyMapProps> = ({ tickets = [], devices = [] })
                     width: 12px; height: 12px; 
                     border: 2px solid white; 
                     box-shadow: 0 0 4px rgba(0,0,0,0.4);
-                    border-radius: ${shape === 'circle' ? '50%' : '2px'};
-                    transform: ${shape === 'diamond' ? 'rotate(45deg)' : 'none'};
+                    ${iconShapeStyle}
                 "></div>
             `;
 
@@ -104,9 +113,9 @@ const TopologyMap: React.FC<TopologyMapProps> = ({ tickets = [], devices = [] })
                 .addTo(map)
                 .bindPopup(`
                     <div style="font-family: sans-serif;">
-                        <div style="font-size: 10px; font-weight: bold; color: #64748b;">${device.type}</div>
+                        <div style="font-size: 10px; font-weight: bold; color: #64748b;">${label}</div>
                         <strong style="font-size: 13px; display:block; margin-bottom:2px;">${device.name}</strong>
-                        <div style="font-size: 11px;">${device.ip_address}</div>
+                        <div style="font-size: 11px;">${device.ip_address || 'Passive'}</div>
                         <div style="font-size: 10px; margin-top: 4px; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; display: inline-block;">
                             ${device.status}
                         </div>
@@ -171,7 +180,7 @@ const TopologyMap: React.FC<TopologyMapProps> = ({ tickets = [], devices = [] })
                 <div className="flex items-center gap-1"><span className="w-3 h-1 bg-green-500"></span> Link OK</div>
                 <div className="flex items-center gap-1"><span className="w-3 h-1 bg-red-500"></span> Link Down</div>
                 <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-600 border border-white"></span> Critical Ticket</div>
-                <div className="flex items-center gap-1"><div className="w-2 h-2 bg-indigo-500 transform rotate-45"></div> Router</div>
+                <div className="flex items-center gap-1"><div className="w-2 h-2 bg-pink-500" style={{clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div> ODP</div>
             </div>
         </div>
         <div 

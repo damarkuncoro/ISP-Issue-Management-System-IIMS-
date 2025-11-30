@@ -27,17 +27,17 @@ const DeviceIcon = ({ type, status }: { type: string, status: DeviceStatus }) =>
   const bgClass = status === DeviceStatus.ACTIVE ? 'bg-blue-100' : 'bg-slate-100';
   const wrapperClass = `p-1.5 rounded-md ${bgClass} ${colorClass} border border-transparent shadow-sm`;
 
-  switch (type) {
-    case 'Router': return <div className={wrapperClass}><Router size={16} /></div>;
-    case 'Switch': return <div className={wrapperClass}><Network size={16} /></div>;
-    case 'OLT': return <div className={wrapperClass}><Server size={16} /></div>;
-    case 'ONU': return <div className={wrapperClass}><Wifi size={16} /></div>;
-    case 'ODP':
-    case 'ODP (Passive)': return <div className={`p-1.5 rounded-md bg-purple-100 text-purple-600 border border-transparent shadow-sm`}><Box size={16} /></div>;
-    case 'ODC':
-    case 'ODC (Passive)': return <div className={`p-1.5 rounded-md bg-slate-200 text-slate-700 border border-transparent shadow-sm`}><Grid size={16} /></div>;
-    default: return <div className={wrapperClass}><Box size={16} /></div>;
-  }
+  // Standardize type string checking to handle "ODP" vs "ODP (Passive)" mismatch
+  const typeStr = type.toUpperCase();
+
+  if (typeStr.includes('ROUTER')) return <div className={wrapperClass}><Router size={16} /></div>;
+  if (typeStr.includes('SWITCH')) return <div className={wrapperClass}><Network size={16} /></div>;
+  if (typeStr.includes('OLT')) return <div className={wrapperClass}><Server size={16} /></div>;
+  if (typeStr.includes('ONU')) return <div className={wrapperClass}><Wifi size={16} /></div>;
+  if (typeStr.includes('ODP')) return <div className={`p-1.5 rounded-md bg-purple-100 text-purple-600 border border-transparent shadow-sm`}><Box size={16} /></div>;
+  if (typeStr.includes('ODC')) return <div className={`p-1.5 rounded-md bg-slate-200 text-slate-700 border border-transparent shadow-sm`}><Grid size={16} /></div>;
+  
+  return <div className={wrapperClass}><Box size={16} /></div>;
 };
 
 const TreeNode: React.FC<TreeNodeProps> = ({ device, allDevices, onSelect, level, isLastChild = true }) => {
