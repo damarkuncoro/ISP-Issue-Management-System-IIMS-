@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export enum TicketStatus {
@@ -111,6 +112,11 @@ export interface Device {
     lat: number;
     lng: number;
   };
+  // Rack Visualization Info
+  rack_id?: string;      // Identifier for the rack (e.g., "RACK-CYBER-01")
+  u_position?: number;   // The top U slot number (1-42)
+  u_height?: number;     // Height in U (e.g., 1, 2, 4)
+  
   status: DeviceStatus;
   last_updated: string;
   installed_by?: string;

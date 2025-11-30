@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { Device, DeviceStatus, UserRole, Customer, Ticket } from '../types';
-import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User, Network, Eye, List, GitGraph, Upload, Grid, Map } from 'lucide-react';
+import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User, Network, Eye, List, GitGraph, Upload, Grid, Map, Box } from 'lucide-react';
 import AddDeviceModal from './AddDeviceModal';
 import ImportDeviceModal from './ImportDeviceModal';
 import NetworkTopologyTree from './NetworkTopologyTree';
 import IPAMGrid from './IPAMGrid';
 import TopologyMap from './TopologyMap';
+import RackDiagram from './RackDiagram';
 
 interface DeviceInventoryProps {
   devices: Device[];
@@ -26,7 +27,7 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
-  const [viewMode, setViewMode] = useState<'LIST' | 'TREE' | 'IPAM' | 'MAP'>('LIST');
+  const [viewMode, setViewMode] = useState<'LIST' | 'TREE' | 'IPAM' | 'MAP' | 'RACK'>('LIST');
   
   // Real-world subnets for PT. Cakramedia Indocyber (AS24200)
   const availableSubnets = [
@@ -42,11 +43,22 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
 
   const [selectedSubnet, setSelectedSubnet] = useState(availableSubnets[4].subnet); // Default to .4 (Infra)
 
+  // Extract unique Rack IDs
+  const availableRacks = Array.from(new Set(devices.map(d => d.rack_id).filter(Boolean))) as string[];
+  const [selectedRack, setSelectedRack] = useState<string>(availableRacks[0] || '');
+
   useEffect(() => {
     if (preSetFilter) {
         setFilterText(preSetFilter);
     }
   }, [preSetFilter]);
+
+  // Update selected rack if racks change and current selection is invalid
+  useEffect(() => {
+      if (availableRacks.length > 0 && !availableRacks.includes(selectedRack)) {
+          setSelectedRack(availableRacks[0]);
+      }
+  }, [availableRacks, selectedRack]);
 
   const filteredDevices = devices.filter(d => 
     d.name.toLowerCase().includes(filterText.toLowerCase()) ||
@@ -129,11 +141,11 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
             <h2 className="text-2xl font-bold text-slate-800">Inventory & Assets</h2>
             <p className="text-slate-500">Manage routers, switches, OLTs, and IPAM.</p>
          </div>
-         <div className="flex gap-2">
-             <div className="bg-slate-100 p-1 rounded-lg flex items-center gap-1 border border-slate-200">
+         <div className="flex gap-2 flex-wrap justify-end">
+             <div className="bg-slate-100 p-1 rounded-lg flex items-center gap-1 border border-slate-200 overflow-x-auto">
                  <button 
                     onClick={() => setViewMode('LIST')}
-                    className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition ${
+                    className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition whitespace-nowrap ${
                         viewMode === 'LIST' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
                     }`}
                  >
@@ -141,15 +153,23 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
                  </button>
                  <button 
                     onClick={() => setViewMode('TREE')}
-                    className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition ${
+                    className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition whitespace-nowrap ${
                         viewMode === 'TREE' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
                     }`}
                  >
-                     <GitGraph size={16} /> Topology Tree
+                     <GitGraph size={16} /> Topology
+                 </button>
+                 <button 
+                    onClick={() => setViewMode('RACK')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition whitespace-nowrap ${
+                        viewMode === 'RACK' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                 >
+                     <Box size={16} /> Rack
                  </button>
                  <button 
                     onClick={() => setViewMode('IPAM')}
-                    className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition ${
+                    className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition whitespace-nowrap ${
                         viewMode === 'IPAM' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
                     }`}
                  >
@@ -157,7 +177,7 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
                  </button>
                  <button 
                     onClick={() => setViewMode('MAP')}
-                    className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition ${
+                    className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition whitespace-nowrap ${
                         viewMode === 'MAP' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
                     }`}
                  >
@@ -211,6 +231,36 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
                   onNavigateToDevice={(id) => { if(onSelectDevice) { const d = devices.find(x => x.id === id); if(d) onSelectDevice(d); } }}
                   onNavigateToCustomer={(id) => { if(onNavigateToCustomer) onNavigateToCustomer(id); }}
               />
+          </div>
+      ) : viewMode === 'RACK' ? (
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+              <div className="flex items-center gap-4 mb-6 border-b border-slate-100 pb-4">
+                  <h4 className="font-bold text-slate-700">Select Rack:</h4>
+                  <select 
+                    className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm"
+                    value={selectedRack}
+                    onChange={(e) => setSelectedRack(e.target.value)}
+                  >
+                      {availableRacks.length > 0 ? (
+                          availableRacks.map(r => (
+                              <option key={r} value={r}>{r}</option>
+                          ))
+                      ) : (
+                          <option value="">No Racks Configured</option>
+                      )}
+                  </select>
+              </div>
+              {selectedRack ? (
+                  <RackDiagram 
+                      rackId={selectedRack}
+                      devices={devices}
+                      onSelectDevice={onSelectDevice}
+                  />
+              ) : (
+                  <div className="text-center py-12 text-slate-400">
+                      No rack data available. Assign 'Rack ID' to devices to view them here.
+                  </div>
+              )}
           </div>
       ) : viewMode === 'TREE' ? (
           <NetworkTopologyTree 

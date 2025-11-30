@@ -10,6 +10,9 @@ export const devicesData = [
     "serial_number": "HE90238423",
     "location": "Cyber Building Lt. 5",
     "coordinates": { "lat": -6.2415, "lng": 106.8257 }, // Cyber Building Kuningan
+    "rack_id": "RACK-CYBER-01",
+    "u_position": 42,
+    "u_height": 1,
     "status": "Active",
     "last_updated": "2025-11-01T10:00:00",
     "validated_by": "Network Engineer"
@@ -24,6 +27,9 @@ export const devicesData = [
     "serial_number": "FOC12345678",
     "location": "POP Bekasi",
     "coordinates": { "lat": -6.2383, "lng": 106.9756 }, // Bekasi
+    "rack_id": "RACK-BEKASI-01",
+    "u_position": 20,
+    "u_height": 1,
     "status": "Pending Validation",
     "last_updated": "2025-11-28T11:00:00",
     "installed_by": "Field Tech - Budi",
@@ -39,6 +45,9 @@ export const devicesData = [
     "serial_number": "ZTEG982342",
     "location": "Robinson Tower",
     "coordinates": { "lat": -6.1392, "lng": 106.7927 }, // Robinson Tower
+    "rack_id": "RACK-ROBINSON-01",
+    "u_position": 35,
+    "u_height": 6,
     "status": "Active",
     "last_updated": "2025-11-15T09:30:00",
     "validated_by": "Network Engineer",

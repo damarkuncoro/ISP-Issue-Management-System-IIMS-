@@ -7,6 +7,7 @@ import EditCustomerModal from './EditCustomerModal';
 import CreateTicketModal from './CreateTicketModal';
 import AddDeviceModal from './AddDeviceModal';
 import TerminateModal from './TerminateModal';
+import LiveTrafficChart from './LiveTrafficChart';
 
 interface CustomerDetailProps {
   customer: Customer;
@@ -91,6 +92,8 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
   const customerTickets = tickets.filter(t => t.link_id === customer.id);
 
   const customerPlan = servicePlans.find(p => p.id === customer.service_plan_id) || servicePlans.find(p => p.name === customer.package_name);
+
+  const isCorporate = customerPlan?.category === 'Corporate' || customerPlan?.category === 'Dedicated';
 
   // Mock Usage Data
   const usageData = [
@@ -490,32 +493,41 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                 </div>
             </div>
 
-            {/* Usage Analytics */}
+            {/* Usage Analytics - Conditional for Corporate */}
             {canViewTechnical && (
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4 flex items-center gap-2">
-                        <BarChart2 size={16} /> Data Usage (7 Days)
+                        <BarChart2 size={16} /> {isCorporate ? 'Real-time Bandwidth' : 'Daily Data Usage (7 Days)'}
                     </h3>
-                    <div className="h-40 w-full">
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                            <BarChart data={usageData}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                <XAxis dataKey="day" tick={{fontSize: 10, fill: '#94a3b8'}} tickLine={false} axisLine={false} />
-                                <YAxis hide domain={[0, 'auto']} />
-                                <Tooltip 
-                                    cursor={{fill: '#f8fafc'}}
-                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
-                                    formatter={(val) => [`${val} GB`, 'Usage']}
-                                />
-                                <Bar dataKey="usage" fill="#3b82f6" radius={[2, 2, 0, 0]} barSize={20} />
-                                <ReferenceLine y={20} stroke="#f97316" strokeDasharray="3 3" />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                    <div className="flex justify-between text-xs text-slate-500 mt-2">
-                        <span>Total: 102 GB</span>
-                        <span>FUP: {customerPlan?.fup_quota_gb ? `${customerPlan.fup_quota_gb} GB` : 'Unlimited'}</span>
-                    </div>
+                    
+                    {isCorporate ? (
+                        <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
+                            <LiveTrafficChart deviceName={customer.name} capacity={customerPlan?.speed_mbps || 100} />
+                        </div>
+                    ) : (
+                        <>
+                            <div className="h-40 w-full">
+                                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                                    <BarChart data={usageData}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                        <XAxis dataKey="day" tick={{fontSize: 10, fill: '#94a3b8'}} tickLine={false} axisLine={false} />
+                                        <YAxis hide domain={[0, 'auto']} />
+                                        <Tooltip 
+                                            cursor={{fill: '#f8fafc'}}
+                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
+                                            formatter={(val) => [`${val} GB`, 'Usage']}
+                                        />
+                                        <Bar dataKey="usage" fill="#3b82f6" radius={[2, 2, 0, 0]} barSize={20} />
+                                        <ReferenceLine y={20} stroke="#f97316" strokeDasharray="3 3" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="flex justify-between text-xs text-slate-500 mt-2">
+                                <span>Total: 102 GB</span>
+                                <span>FUP: {customerPlan?.fup_quota_gb ? `${customerPlan.fup_quota_gb} GB` : 'Unlimited'}</span>
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
 
