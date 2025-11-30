@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
-import { Device, DeviceStatus, Ticket, UserRole, Customer } from '../types';
-import { ArrowLeft, Server, MapPin, Shield, Activity, Network, Users, Ticket as TicketIcon, Edit, Clock, Settings, CheckCircle, Boxes, Terminal } from 'lucide-react';
+import { Device, DeviceStatus, Ticket, UserRole, Customer, DeviceType } from '../types';
+import { ArrowLeft, Server, MapPin, Shield, Activity, Network, Users, Ticket as TicketIcon, Edit, Clock, Settings, CheckCircle, Boxes, Terminal, Box } from 'lucide-react';
 import LiveTrafficChart from './LiveTrafficChart';
 import AddDeviceModal from './AddDeviceModal';
 import WebTerminal from './WebTerminal';
+import NetworkTopologyTree from './NetworkTopologyTree';
 
 interface DeviceDetailProps {
   device: Device;
@@ -30,7 +31,7 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
     onNavigateToDevice
 }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'traffic' | 'topology' | 'history' | 'pon_ports' | 'terminal'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'traffic' | 'topology' | 'history' | 'pon_ports' | 'terminal' | 'odp_ports'>('overview');
 
   // Logic
   const connectedDownstream = allDevices.filter(d => d.uplink_device_id === device.id);
@@ -38,12 +39,14 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
   const parentDevice = allDevices.find(d => d.id === device.uplink_device_id);
   const linkedCustomer = customers.find(c => c.id === device.customer_id);
 
-  const isOLT = device.type === 'OLT';
+  const isOLT = device.type === DeviceType.OLT;
+  const isODP = device.type === DeviceType.ODP;
+  const isPassive = isODP || device.type === DeviceType.ODC;
 
   const canEdit = userRole === UserRole.NETWORK || userRole === UserRole.NOC || userRole === UserRole.INVENTORY_ADMIN || userRole === UserRole.MANAGER;
   
-  // Only Network Engineers and NOC can access the CLI
-  const canAccessTerminal = userRole === UserRole.NETWORK || userRole === UserRole.NOC || userRole === UserRole.MANAGER;
+  // Only Network Engineers and NOC can access the CLI (Active Devices Only)
+  const canAccessTerminal = !isPassive && (userRole === UserRole.NETWORK || userRole === UserRole.NOC || userRole === UserRole.MANAGER);
 
   const handleUpdate = (data: any) => {
       onUpdateDevice(device.id, data);
@@ -55,22 +58,25 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
     const ports = [];
     const maxPorts = 8; // Simulate 8 port OLT card
     
-    // Find all connected ONUs
-    const onus = allDevices.filter(d => d.uplink_device_id === device.id);
+    // Find all connected ONUs (recursive search ideally, but here direct or via ODP)
+    // Simplified: Find devices where uplink chain leads here. 
+    // For visualization, we just check direct children for now in this mock function
+    const directChildren = allDevices.filter(d => d.uplink_device_id === device.id);
     
     for (let i = 1; i <= maxPorts; i++) {
         const portName = `PON-${i}`;
-        // Find ONUs on this port by checking linked customer's olt_port string or simulation
-        const connected = onus.filter(onu => {
-            const cust = customers.find(c => c.id === onu.customer_id);
-            return cust?.olt_port?.includes(portName);
+        // Find children on this port by checking linked customer's olt_port string or simulation
+        const connected = directChildren.filter(child => {
+            const cust = customers.find(c => c.id === child.customer_id);
+            // Or if child is ODP, assume it takes one PON port
+            return (cust?.olt_port?.includes(portName)) || (child.type === DeviceType.ODP && (i % 2 === 0)); // Mock distribution
         });
         
         ports.push({
             id: i,
             name: portName,
             connectedCount: connected.length,
-            onus: connected,
+            children: connected,
             capacity: 64 // Max per PON
         });
     }
@@ -112,7 +118,7 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
               {device.status}
             </span>
           </div>
-          <p className="text-slate-500 font-mono text-sm">{device.ip_address || 'No IP'} • {device.mac_address}</p>
+          <p className="text-slate-500 font-mono text-sm">{device.ip_address || 'Passive Device'} • {device.serial_number}</p>
         </div>
         {canEdit && (
             <button 
@@ -126,7 +132,7 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
 
       {/* Tabs */}
       <div className="flex gap-4 border-b border-slate-200 overflow-x-auto">
-          {['overview', 'traffic', 'topology', isOLT ? 'pon_ports' : null, 'history', canAccessTerminal ? 'terminal' : null].filter(Boolean).map((tab) => (
+          {['overview', !isPassive ? 'traffic' : null, 'topology', isOLT ? 'pon_ports' : null, isODP ? 'odp_ports' : null, 'history', canAccessTerminal ? 'terminal' : null].filter(Boolean).map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
@@ -163,6 +169,12 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
                               <p className="text-xs text-slate-500 uppercase">Serial Number</p>
                               <p className="font-mono text-slate-700">{device.serial_number}</p>
                           </div>
+                          {device.port_capacity && (
+                              <div>
+                                  <p className="text-xs text-slate-500 uppercase">Capacity</p>
+                                  <p className="font-medium text-slate-800">{device.port_capacity} Ports</p>
+                              </div>
+                          )}
                           <div>
                               <p className="text-xs text-slate-500 uppercase">Installation Date</p>
                               <p className="font-medium text-slate-800">{new Date(device.last_updated).toLocaleDateString()}</p>
@@ -195,7 +207,7 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
                                   <div>
                                       <p className="text-xs text-slate-500 font-bold uppercase">Uplink (Parent)</p>
                                       <p className="font-bold text-slate-800">{parentDevice.name}</p>
-                                      <p className="text-xs text-slate-500">{parentDevice.ip_address}</p>
+                                      <p className="text-xs text-slate-500">{parentDevice.ip_address || parentDevice.location}</p>
                                   </div>
                               </div>
                           )}
@@ -204,39 +216,66 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
               </div>
 
               <div className="space-y-6">
-                  <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                      <h4 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
-                          <Activity size={18} className="text-blue-500" /> Status
-                      </h4>
-                      <div className="space-y-4">
-                          <div className="flex justify-between items-center">
-                              <span className="text-sm text-slate-600">Uptime</span>
-                              <span className="font-mono font-medium text-slate-800">45d 12h 30m</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                              <span className="text-sm text-slate-600">CPU Load</span>
-                              <span className="font-mono font-medium text-green-600">12%</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                              <span className="text-sm text-slate-600">Memory</span>
-                              <span className="font-mono font-medium text-blue-600">450MB / 1GB</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                              <span className="text-sm text-slate-600">Temperature</span>
-                              <span className="font-mono font-medium text-slate-800">42°C</span>
+                  {isPassive ? (
+                      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                          <h4 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
+                              <Box size={18} className="text-purple-500" /> Port Utilization
+                          </h4>
+                          <div className="text-center py-6">
+                              <div className="text-4xl font-bold text-slate-800 mb-1">
+                                  {connectedDownstream.length} <span className="text-xl text-slate-400 font-normal">/ {device.port_capacity || 8}</span>
+                              </div>
+                              <p className="text-xs text-slate-500 uppercase">Ports Occupied</p>
+                              <div className="w-full bg-slate-100 h-3 rounded-full mt-4 overflow-hidden">
+                                  <div 
+                                    className="h-full bg-purple-500 transition-all duration-500"
+                                    style={{ width: `${(connectedDownstream.length / (device.port_capacity || 8)) * 100}%` }}
+                                  ></div>
+                              </div>
                           </div>
                       </div>
-                  </div>
+                  ) : (
+                      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                          <h4 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
+                              <Activity size={18} className="text-blue-500" /> Status
+                          </h4>
+                          <div className="space-y-4">
+                              <div className="flex justify-between items-center">
+                                  <span className="text-sm text-slate-600">Uptime</span>
+                                  <span className="font-mono font-medium text-slate-800">45d 12h 30m</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                  <span className="text-sm text-slate-600">CPU Load</span>
+                                  <span className="font-mono font-medium text-green-600">12%</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                  <span className="text-sm text-slate-600">Memory</span>
+                                  <span className="font-mono font-medium text-blue-600">450MB / 1GB</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                  <span className="text-sm text-slate-600">Temperature</span>
+                                  <span className="font-mono font-medium text-slate-800">42°C</span>
+                              </div>
+                          </div>
+                      </div>
+                  )}
                   
                   {/* Quick Actions */}
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                       <h4 className="text-xs font-bold text-slate-500 uppercase mb-3">Management</h4>
                       <div className="space-y-2">
+                          {!isPassive && (
+                              <>
+                                <button className="w-full text-left px-3 py-2 bg-white border border-slate-200 rounded text-sm hover:border-blue-400 hover:text-blue-600 transition flex items-center gap-2">
+                                    <Settings size={14} /> Web Config (Remote)
+                                </button>
+                                <button className="w-full text-left px-3 py-2 bg-white border border-slate-200 rounded text-sm hover:border-blue-400 hover:text-blue-600 transition flex items-center gap-2">
+                                    <Activity size={14} /> Ping Test
+                                </button>
+                              </>
+                          )}
                           <button className="w-full text-left px-3 py-2 bg-white border border-slate-200 rounded text-sm hover:border-blue-400 hover:text-blue-600 transition flex items-center gap-2">
-                              <Settings size={14} /> Web Config (Remote)
-                          </button>
-                          <button className="w-full text-left px-3 py-2 bg-white border border-slate-200 rounded text-sm hover:border-blue-400 hover:text-blue-600 transition flex items-center gap-2">
-                              <Activity size={14} /> Ping Test
+                              <TicketIcon size={14} /> Report Issue
                           </button>
                       </div>
                   </div>
@@ -248,6 +287,43 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
       {activeTab === 'traffic' && (
           <div className="animate-in fade-in">
               <LiveTrafficChart deviceName={device.name} />
+          </div>
+      )}
+
+      {/* ODP PORTS TAB */}
+      {activeTab === 'odp_ports' && isODP && (
+          <div className="animate-in fade-in bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+              <h4 className="font-bold text-slate-700 mb-6 flex items-center gap-2">
+                  <Box size={18} className="text-purple-600" /> ODP Port Map
+              </h4>
+              <div className="grid grid-cols-4 md:grid-cols-8 gap-4">
+                  {Array.from({ length: device.port_capacity || 8 }).map((_, idx) => {
+                      const portNum = idx + 1;
+                      const connectedDevice = connectedDownstream[idx]; // Mock mapping by index
+                      
+                      return (
+                          <div 
+                            key={idx} 
+                            className={`p-3 rounded-lg border flex flex-col items-center justify-center aspect-square transition ${
+                                connectedDevice 
+                                ? 'bg-green-50 border-green-300 cursor-pointer hover:bg-green-100' 
+                                : 'bg-slate-50 border-slate-200 opacity-50'
+                            }`}
+                            onClick={() => connectedDevice && onNavigateToDevice(connectedDevice.id)}
+                          >
+                              <span className="text-xs font-bold text-slate-400 mb-1">{portNum}</span>
+                              {connectedDevice ? (
+                                  <>
+                                    <div className="w-3 h-3 bg-green-500 rounded-full mb-1"></div>
+                                    <span className="text-[10px] text-green-700 font-medium truncate w-full text-center">{connectedDevice.name}</span>
+                                  </>
+                              ) : (
+                                  <div className="w-3 h-3 bg-slate-300 rounded-full"></div>
+                              )}
+                          </div>
+                      );
+                  })}
+              </div>
           </div>
       )}
 
@@ -273,24 +349,24 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
                                       <span className={`w-3 h-3 rounded-full ${dotColor}`}></span>
                                   </div>
                                   <div className="text-xs text-slate-600 mb-2">
-                                      {port.connectedCount} / {port.capacity} ONUs
+                                      {port.connectedCount} / {port.capacity} Active
                                   </div>
                                   <div className="w-full bg-white/50 h-1.5 rounded-full overflow-hidden">
                                       <div className={`h-full ${dotColor}`} style={{ width: `${percent}%` }}></div>
                                   </div>
                                   
                                   {/* Tooltip List of ONUs */}
-                                  {port.onus.length > 0 && (
+                                  {port.children.length > 0 && (
                                       <div className="hidden group-hover:block absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-slate-200 z-10 p-2 max-h-48 overflow-y-auto">
                                           <p className="text-[10px] font-bold text-slate-400 uppercase mb-1 px-1">Connected Clients</p>
-                                          {port.onus.map(o => (
+                                          {port.children.map(o => (
                                               <div 
                                                 key={o.id} 
                                                 className="text-xs p-1.5 hover:bg-slate-50 rounded cursor-pointer"
                                                 onClick={() => onNavigateToDevice(o.id)}
                                               >
                                                   <div className="font-medium text-slate-800">{o.name}</div>
-                                                  <div className="text-[10px] text-slate-500">{o.ip_address}</div>
+                                                  <div className="text-[10px] text-slate-500">{o.ip_address || o.type}</div>
                                               </div>
                                           ))}
                                       </div>
@@ -305,55 +381,12 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
 
       {/* TOPOLOGY TAB */}
       {activeTab === 'topology' && (
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 animate-in fade-in">
-              <h4 className="font-bold text-slate-700 mb-6 flex items-center gap-2">
-                  <Network size={18} className="text-purple-600" /> Downstream Connected Devices
-              </h4>
-              
-              {connectedDownstream.length === 0 ? (
-                  <div className="text-center py-12 bg-slate-50 rounded-lg border border-dashed border-slate-200 text-slate-500">
-                      <Network size={32} className="mx-auto text-slate-300 mb-2" />
-                      <p>No devices are currently connected downstream from this unit.</p>
-                  </div>
-              ) : (
-                  <div className="overflow-x-auto">
-                      <table className="w-full text-sm text-left">
-                          <thead className="bg-slate-50 text-slate-600">
-                              <tr>
-                                  <th className="px-6 py-3">Device Name</th>
-                                  <th className="px-6 py-3">Type</th>
-                                  <th className="px-6 py-3">IP Address</th>
-                                  <th className="px-6 py-3">Status</th>
-                                  <th className="px-6 py-3">Action</th>
-                              </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                              {connectedDownstream.map(downstream => (
-                                  <tr key={downstream.id} className="hover:bg-slate-50">
-                                      <td className="px-6 py-4 font-medium text-slate-800">{downstream.name}</td>
-                                      <td className="px-6 py-4">{downstream.type}</td>
-                                      <td className="px-6 py-4 font-mono text-xs">{downstream.ip_address}</td>
-                                      <td className="px-6 py-4">
-                                          <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${
-                                              downstream.status === DeviceStatus.ACTIVE ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                                          }`}>
-                                              {downstream.status}
-                                          </span>
-                                      </td>
-                                      <td className="px-6 py-4">
-                                          <button 
-                                            onClick={() => onNavigateToDevice(downstream.id)}
-                                            className="text-blue-600 hover:underline text-xs"
-                                          >
-                                              View
-                                          </button>
-                                      </td>
-                                  </tr>
-                              ))}
-                          </tbody>
-                      </table>
-                  </div>
-              )}
+          <div className="animate-in fade-in">
+              <NetworkTopologyTree 
+                  devices={allDevices}
+                  rootDevice={device}
+                  onSelectDevice={(d) => onNavigateToDevice(d.id)}
+              />
           </div>
       )}
 

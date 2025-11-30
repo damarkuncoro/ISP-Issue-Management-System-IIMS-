@@ -96,7 +96,9 @@ export enum DeviceType {
   OLT = 'OLT',
   ONU = 'ONU',
   SERVER = 'Server',
-  FIREWALL = 'Firewall'
+  FIREWALL = 'Firewall',
+  ODP = 'ODP',
+  ODC = 'ODC'
 }
 
 export interface Device {
@@ -124,6 +126,7 @@ export interface Device {
   installation_photo?: string; // Mock URL or Base64
   customer_id?: string; // Relation to Customer
   uplink_device_id?: string; // Relation to Parent Device (Topology) e.g., ONU connects to OLT
+  port_capacity?: number; // Capacity for OLT/ODP
 }
 
 // --- CUSTOMER TYPES ---

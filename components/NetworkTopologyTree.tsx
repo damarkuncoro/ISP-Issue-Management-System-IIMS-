@@ -1,10 +1,12 @@
+
 import React, { useState } from 'react';
 import { Device, DeviceStatus } from '../types';
-import { Server, Network, Router, Monitor, ChevronRight, ChevronDown, Wifi, Box } from 'lucide-react';
+import { Server, Network, Router, Monitor, ChevronRight, ChevronDown, Wifi, Box, Grid } from 'lucide-react';
 
 interface NetworkTopologyTreeProps {
   devices: Device[];
   onSelectDevice?: (device: Device) => void;
+  rootDevice?: Device;
 }
 
 interface TreeNodeProps {
@@ -30,6 +32,10 @@ const DeviceIcon = ({ type, status }: { type: string, status: DeviceStatus }) =>
     case 'Switch': return <div className={wrapperClass}><Network size={16} /></div>;
     case 'OLT': return <div className={wrapperClass}><Server size={16} /></div>;
     case 'ONU': return <div className={wrapperClass}><Wifi size={16} /></div>;
+    case 'ODP':
+    case 'ODP (Passive)': return <div className={`p-1.5 rounded-md bg-purple-100 text-purple-600 border border-transparent shadow-sm`}><Box size={16} /></div>;
+    case 'ODC':
+    case 'ODC (Passive)': return <div className={`p-1.5 rounded-md bg-slate-200 text-slate-700 border border-transparent shadow-sm`}><Grid size={16} /></div>;
     default: return <div className={wrapperClass}><Box size={16} /></div>;
   }
 };
@@ -48,10 +54,6 @@ const TreeNode: React.FC<TreeNodeProps> = ({ device, allDevices, onSelect, level
   const isOffline = device.status === DeviceStatus.MAINTENANCE || device.status === DeviceStatus.RETIRED;
   const isPending = device.status === DeviceStatus.PENDING;
 
-  // Calculate connector line position
-  // The vertical line for children should drop from the center of the current node's toggle icon?
-  // No, usually tree lines align left.
-  
   return (
     <div className="relative">
       
@@ -79,7 +81,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({ device, allDevices, onSelect, level
             <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-slate-800">{device.name}</span>
                 {isPending && <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 rounded font-bold border border-yellow-200">NEW</span>}
-                <span className="text-[10px] text-slate-400 font-mono bg-slate-50 px-1 rounded">{device.ip_address || 'No IP'}</span>
+                {device.ip_address && <span className="text-[10px] text-slate-400 font-mono bg-slate-50 px-1 rounded">{device.ip_address}</span>}
+                {device.port_capacity && <span className="text-[10px] text-purple-500 font-mono bg-purple-50 px-1 rounded border border-purple-100">{children.length}/{device.port_capacity}</span>}
             </div>
             <div className="text-[10px] text-slate-500 flex items-center gap-1">
                 <span className="font-semibold text-slate-600">{device.type}</span> 
@@ -99,39 +102,25 @@ const TreeNode: React.FC<TreeNodeProps> = ({ device, allDevices, onSelect, level
       {/* Children Recursion */}
       {isExpanded && hasChildren && (
         <div className="relative">
-            {/* 
-                Vertical Line:
-                Positioned relative to the Parent.
-                Left offset should center it under the Parent's Toggle Button.
-                Parent Margin-Left = level * INDENT_SIZE
-                Parent Padding = 8px (p-2)
-                Toggle Width = 24px (w-6)
-                Center of Toggle = (level * INDENT_SIZE) + 8 + 12 = level * INDENT_SIZE + 20px
-            */}
+            {/* Vertical Line */}
             <div 
                 className="absolute border-l-2 border-slate-200" 
                 style={{ 
                     left: `${(level * INDENT_SIZE) + 20}px`, 
                     top: '0', 
-                    bottom: '18px' // Stop before the last item curve
+                    bottom: '18px' 
                 }} 
             />
             {children.map((child, index) => (
                 <div key={child.id} className="relative">
                     {/* Horizontal Curve Connector */}
-                    {/* 
-                        Starts from the Vertical Line and curves right to the Child.
-                        Left = Vertical Line position = (level * INDENT_SIZE) + 20px
-                        Width = INDENT_SIZE (32px) roughly? 
-                        It connects to the center of the Child's Toggle.
-                    */}
                     <div 
                         className="absolute border-b-2 border-l-2 border-slate-200 rounded-bl-xl"
                         style={{
                             left: `${(level * INDENT_SIZE) + 20}px`,
-                            top: '-14px', // Start from slightly above to overlap vertical line
-                            height: '46px', // Curve height
-                            width: `${INDENT_SIZE}px` // Reach next level
+                            top: '-14px', 
+                            height: '46px',
+                            width: `${INDENT_SIZE}px`
                         }}
                     />
                     <TreeNode 
@@ -149,25 +138,27 @@ const TreeNode: React.FC<TreeNodeProps> = ({ device, allDevices, onSelect, level
   );
 };
 
-const NetworkTopologyTree: React.FC<NetworkTopologyTreeProps> = ({ devices, onSelectDevice }) => {
-  // Find Root Nodes (Devices where uplink is null OR uplink ID doesn't exist in current dataset)
-  const rootDevices = devices.filter(d => 
-    !d.uplink_device_id || !devices.find(p => p.id === d.uplink_device_id)
-  );
+const NetworkTopologyTree: React.FC<NetworkTopologyTreeProps> = ({ devices, onSelectDevice, rootDevice }) => {
+  // Determine which devices to show at the top level
+  // If rootDevice is provided, start from there. Otherwise find all root nodes.
+  const displayedRoots = rootDevice 
+    ? [rootDevice] 
+    : devices.filter(d => !d.uplink_device_id || !devices.find(p => p.id === d.uplink_device_id));
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[600px]">
         <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center flex-shrink-0">
             <h4 className="font-bold text-slate-700 flex items-center gap-2">
-                <Network size={18} className="text-blue-600" /> Network Hierarchy
+                <Network size={18} className="text-blue-600" /> 
+                {rootDevice ? `Topology: ${rootDevice.name}` : 'Network Hierarchy'}
             </h4>
             <div className="text-xs text-slate-500 bg-white px-2 py-1 rounded border border-slate-200">
-                <span className="font-bold text-slate-800">{devices.length}</span> Nodes Loaded
+                <span className="font-bold text-slate-800">{rootDevice ? 'Tree View' : `${displayedRoots.length} Roots`}</span>
             </div>
         </div>
         
         <div className="p-6 overflow-x-auto overflow-y-auto flex-1 bg-white">
-            {rootDevices.length === 0 ? (
+            {displayedRoots.length === 0 ? (
                 <div className="text-center text-slate-400 py-10 flex flex-col items-center justify-center h-full">
                     <Network size={48} className="mb-4 opacity-20" />
                     <p>No device topology found.</p>
@@ -175,14 +166,14 @@ const NetworkTopologyTree: React.FC<NetworkTopologyTreeProps> = ({ devices, onSe
                 </div>
             ) : (
                 <div className="space-y-1 min-w-[600px] pb-10">
-                    {rootDevices.map((device, index) => (
+                    {displayedRoots.map((device, index) => (
                         <TreeNode 
                             key={device.id}
                             device={device}
                             allDevices={devices}
                             onSelect={onSelectDevice}
                             level={0}
-                            isLastChild={index === rootDevices.length - 1}
+                            isLastChild={index === displayedRoots.length - 1}
                         />
                     ))}
                 </div>
