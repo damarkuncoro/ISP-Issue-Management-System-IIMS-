@@ -617,8 +617,8 @@ const App: React.FC = () => {
           {/* Logo */}
           <div className="p-6 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center font-bold text-white">I</div>
-                <h1 className="text-xl font-bold tracking-tight">ISP Issue<span className="text-blue-500">Manager</span></h1>
+                <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center font-bold text-white">C</div>
+                <h1 className="text-xl font-bold tracking-tight">Cakramedia <span className="text-blue-500">Manager</span></h1>
              </div>
              <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-slate-400">
                <X size={24} />
@@ -792,7 +792,9 @@ const App: React.FC = () => {
                     onUpdateDevice={handleUpdateDevice}
                     onValidateDevice={handleValidateDevice}
                     onSelectDevice={handleSelectDevice}
-                    preSetFilter={deviceFilter} 
+                    preSetFilter={deviceFilter}
+                    tickets={tickets} 
+                    onNavigateToCustomer={handleNavigateToCustomer}
                 />
               )}
               {currentView === View.CUSTOMERS && (

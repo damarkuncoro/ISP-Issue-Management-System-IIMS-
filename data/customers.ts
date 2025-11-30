@@ -1,3 +1,4 @@
+
 export const customersData = [
   {
     "id": "CID-250001",
@@ -12,7 +13,7 @@ export const customersData = [
     "identity_number": "7123912389123",
     "contract_doc": true,
     "pppoe_username": "majumundur_corp",
-    "ip_address": "103.10.10.50",
+    "ip_address": "202.133.0.50",
     "vlan_id": 205,
     "olt_port": "OLT-01-PON-2",
     "sales_agent": "Sales - Rina",
@@ -45,5 +46,97 @@ export const customersData = [
     "registered_at": "2025-11-29T08:30:00",
     "sales_agent": "Sales - Rina",
     "last_updated": "2025-11-29T08:30:00"
+  },
+  // --- REAL DATA: ROBINSON POP CUSTOMERS ---
+  {
+    "id": "CUST-ROB-001",
+    "name": "Sumi Florence 7 NO. 70",
+    "email": "contact@florence.com",
+    "phone": "N/A",
+    "address": "Apartemen Robinson, Florence 7 No. 70",
+    "package_name": "Corporate 15 Mbps",
+    "service_plan_id": "PLAN-CORP-15",
+    "status": "Active",
+    "registered_at": "2024-01-10T09:00:00",
+    "ip_address": "202.133.0.162",
+    "last_updated": "2025-11-28T10:00:00"
+  },
+  {
+    "id": "CUST-ROB-002",
+    "name": "CPE Indodaya Robinson",
+    "email": "it@indodaya.com",
+    "phone": "N/A",
+    "address": "Apartemen Robinson",
+    "package_name": "IX 150MB / IIX 120MB",
+    "service_plan_id": "PLAN-MIX-150",
+    "status": "Active",
+    "registered_at": "2024-02-15T09:00:00",
+    "ip_address": "202.133.2.41",
+    "last_updated": "2025-11-28T10:00:00"
+  },
+  {
+    "id": "CUST-ROB-003",
+    "name": "Acosta",
+    "email": "admin@acosta.com",
+    "phone": "N/A",
+    "address": "Apartemen Robinson",
+    "package_name": "Corporate 20 Mbps",
+    "service_plan_id": "PLAN-CORP-20",
+    "status": "Active",
+    "registered_at": "2024-03-20T09:00:00",
+    "ip_address": "202.133.2.58",
+    "last_updated": "2025-11-28T10:00:00"
+  },
+  {
+    "id": "CUST-ROB-004",
+    "name": "Sinarbudi (ex Arabika Pluit)",
+    "email": "sinarbudi@gmail.com",
+    "phone": "N/A",
+    "address": "Apartemen Robinson",
+    "package_name": "Corporate 20 Mbps",
+    "service_plan_id": "PLAN-CORP-20",
+    "status": "Active",
+    "registered_at": "2024-04-05T09:00:00",
+    "ip_address": "202.133.2.206",
+    "last_updated": "2025-11-28T10:00:00"
+  },
+  {
+    "id": "CUST-ROB-005",
+    "name": "Adreshi Multi Laras",
+    "email": "info@adreshi.com",
+    "phone": "N/A",
+    "address": "Apartemen Robinson",
+    "package_name": "Corporate 20 Mbps",
+    "service_plan_id": "PLAN-CORP-20",
+    "status": "Active",
+    "registered_at": "2024-05-12T09:00:00",
+    "ip_address": "202.133.5.66",
+    "last_updated": "2025-11-28T10:00:00"
+  },
+  {
+    "id": "CUST-ROB-006",
+    "name": "Wahana EL",
+    "email": "contact@wahanael.com",
+    "phone": "N/A",
+    "address": "Apartemen Robinson",
+    "package_name": "Corporate 10 Mbps",
+    "service_plan_id": "PLAN-CORP-10",
+    "status": "Active",
+    "registered_at": "2024-06-18T09:00:00",
+    "ip_address": "202.133.4.89",
+    "last_updated": "2025-11-28T10:00:00"
+  },
+  {
+    "id": "CUST-ROB-007",
+    "name": "Mypharma",
+    "email": "it@mypharma.co.id",
+    "phone": "N/A",
+    "address": "Apartemen Robinson",
+    "package_name": "Corporate 20 Mbps",
+    "service_plan_id": "PLAN-CORP-20",
+    "status": "Active",
+    "registered_at": "2024-07-22T09:00:00",
+    "ip_address": "202.133.2.181",
+    "last_updated": "2025-11-28T10:00:00"
   }
 ];

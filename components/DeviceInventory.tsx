@@ -1,34 +1,50 @@
 
 import React, { useState, useEffect } from 'react';
-import { Device, DeviceStatus, UserRole, Customer } from '../types';
-import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User, Network, Eye, List, GitGraph, Upload } from 'lucide-react';
+import { Device, DeviceStatus, UserRole, Customer, Ticket } from '../types';
+import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User, Network, Eye, List, GitGraph, Upload, Grid, Map } from 'lucide-react';
 import AddDeviceModal from './AddDeviceModal';
 import ImportDeviceModal from './ImportDeviceModal';
 import NetworkTopologyTree from './NetworkTopologyTree';
+import IPAMGrid from './IPAMGrid';
+import TopologyMap from './TopologyMap';
 
 interface DeviceInventoryProps {
   devices: Device[];
   userRole: UserRole;
-  customers?: Customer[]; // Added prop
+  customers?: Customer[]; 
   onAddDevice: (device: any) => void;
   onUpdateDevice: (id: string, device: any) => void;
   onValidateDevice: (id: string) => void;
-  onSelectDevice?: (device: Device) => void; // New Prop for viewing details
-  preSetFilter?: string; // New Prop for Global Search navigation
+  onSelectDevice?: (device: Device) => void;
+  onNavigateToCustomer?: (customerOrId: string | Customer) => void; // Added for IPAM linking
+  preSetFilter?: string; 
+  tickets?: Ticket[]; // Added optional tickets for map context
 }
 
-const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, customers = [], onAddDevice, onUpdateDevice, onValidateDevice, onSelectDevice, preSetFilter }) => {
+const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, customers = [], onAddDevice, onUpdateDevice, onValidateDevice, onSelectDevice, onNavigateToCustomer, preSetFilter, tickets = [] }) => {
   const [filterText, setFilterText] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
-  const [viewMode, setViewMode] = useState<'LIST' | 'TREE'>('LIST');
+  const [viewMode, setViewMode] = useState<'LIST' | 'TREE' | 'IPAM' | 'MAP'>('LIST');
+  
+  // Real-world subnets for PT. Cakramedia Indocyber (AS24200)
+  const availableSubnets = [
+    { subnet: "202.133.0", description: "Static Assignment (Corp)" },
+    { subnet: "202.133.1", description: "Static Assignment (Corp)" },
+    { subnet: "202.133.2", description: "Static Assignment (Corp)" },
+    { subnet: "202.133.3", description: "Cakramedia Indocyber, PT." },
+    { subnet: "202.133.4", description: "PT. Cakramedia Indocyber" },
+    { subnet: "202.133.5", description: "Cybercafe & Office (Laguna)" },
+    { subnet: "202.133.6", description: "Static Assignment (Corp)" },
+    { subnet: "202.133.7", description: "Static Assignment (Corp)" }
+  ];
+
+  const [selectedSubnet, setSelectedSubnet] = useState(availableSubnets[4].subnet); // Default to .4 (Infra)
 
   useEffect(() => {
     if (preSetFilter) {
         setFilterText(preSetFilter);
-        // If filter is active, list view might be better to find the specific item
-        // But if user wants to see where it is in tree, Tree view is cool too. Keeping List as default for search.
     }
   }, [preSetFilter]);
 
@@ -41,10 +57,6 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
 
   const canValidate = userRole === UserRole.NETWORK || userRole === UserRole.INVENTORY_ADMIN || userRole === UserRole.NOC;
   
-  // Who can edit?
-  // Network/NOC/Admin: Full Edit
-  // Field: Partial Edit (Location)
-  // CS/Sales: No Edit
   const canEdit = userRole === UserRole.NETWORK || userRole === UserRole.INVENTORY_ADMIN || userRole === UserRole.NOC || userRole === UserRole.MANAGER || userRole === UserRole.FIELD;
 
   const handleOpenAdd = () => {
@@ -58,7 +70,6 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
     setIsModalOpen(true);
   };
 
-  // When validating, we open the modal in Edit mode so NOC can fill IP Address
   const handleValidateClick = (e: React.MouseEvent, device: Device) => {
       e.stopPropagation();
       setEditingDevice(device);
@@ -67,10 +78,7 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
 
   const handleModalSubmit = (deviceData: any) => {
       if (editingDevice) {
-          // If we are editing (or validating)
           if (editingDevice.status === DeviceStatus.PENDING && canValidate) {
-             // If validation flow, ensure status is set to active and call the specific validation handler or update handler
-             // Here we reuse update logic but ensure status is Active if it was pending
              onUpdateDevice(editingDevice.id, { ...deviceData, status: DeviceStatus.ACTIVE });
           } else {
              onUpdateDevice(editingDevice.id, deviceData);
@@ -81,8 +89,6 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
   };
 
   const handleBulkImport = (newDevices: any[]) => {
-      // In a real app, this might be a single bulk API call
-      // Here we iterate to simulate
       newDevices.forEach(d => onAddDevice(d));
   };
 
@@ -103,12 +109,12 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
       <AddDeviceModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        onSubmit={handleModalSubmit} // We use a wrapper to handle add vs update
-        onUpdate={(id, data) => handleModalSubmit(data)} // Redirect update to same wrapper
+        onSubmit={handleModalSubmit} 
+        onUpdate={(id, data) => handleModalSubmit(data)}
         userRole={userRole}
         device={editingDevice}
         customers={customers}
-        allDevices={devices} // Pass all devices for uplink selection
+        allDevices={devices}
       />
 
       <ImportDeviceModal 
@@ -120,8 +126,8 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
          <div>
-            <h2 className="text-2xl font-bold text-slate-800">Network Inventory</h2>
-            <p className="text-slate-500">Manage routers, switches, OLTs, and infrastructure assets.</p>
+            <h2 className="text-2xl font-bold text-slate-800">Inventory & Assets</h2>
+            <p className="text-slate-500">Manage routers, switches, OLTs, and IPAM.</p>
          </div>
          <div className="flex gap-2">
              <div className="bg-slate-100 p-1 rounded-lg flex items-center gap-1 border border-slate-200">
@@ -141,10 +147,26 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
                  >
                      <GitGraph size={16} /> Topology Tree
                  </button>
+                 <button 
+                    onClick={() => setViewMode('IPAM')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition ${
+                        viewMode === 'IPAM' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                 >
+                     <Grid size={16} /> IPAM
+                 </button>
+                 <button 
+                    onClick={() => setViewMode('MAP')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition ${
+                        viewMode === 'MAP' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                 >
+                     <Map size={16} /> Map
+                 </button>
              </div>
 
              {/* Only Technical roles can Add Devices */}
-             {(canEdit || canValidate) && (
+             {(canEdit || canValidate) && viewMode === 'LIST' && (
                  <>
                     <button 
                         onClick={() => setIsImportModalOpen(true)}
@@ -164,7 +186,33 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
          </div>
       </div>
 
-      {viewMode === 'TREE' ? (
+      {viewMode === 'MAP' ? (
+          <div className="h-[600px]">
+              <TopologyMap devices={devices} tickets={tickets} />
+          </div>
+      ) : viewMode === 'IPAM' ? (
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+              <div className="flex items-center gap-4 mb-6 border-b border-slate-100 pb-4">
+                  <h4 className="font-bold text-slate-700">Select Subnet:</h4>
+                  <select 
+                    className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                    value={selectedSubnet}
+                    onChange={(e) => setSelectedSubnet(e.target.value)}
+                  >
+                      {availableSubnets.map(s => (
+                          <option key={s.subnet} value={s.subnet}>{s.subnet}.0/24 - {s.description}</option>
+                      ))}
+                  </select>
+              </div>
+              <IPAMGrid 
+                  subnet={selectedSubnet}
+                  devices={devices}
+                  customers={customers}
+                  onNavigateToDevice={(id) => { if(onSelectDevice) { const d = devices.find(x => x.id === id); if(d) onSelectDevice(d); } }}
+                  onNavigateToCustomer={(id) => { if(onNavigateToCustomer) onNavigateToCustomer(id); }}
+              />
+          </div>
+      ) : viewMode === 'TREE' ? (
           <NetworkTopologyTree 
             devices={devices} // Pass all devices, tree handles filtering
             onSelectDevice={onSelectDevice}

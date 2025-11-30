@@ -57,7 +57,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                         <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
                             <Shield size={24} className="text-white" />
                         </div>
-                        <h1 className="text-2xl font-bold tracking-tight">ISP Issue<span className="text-blue-500">Manager</span></h1>
+                        <h1 className="text-2xl font-bold tracking-tight">Cakramedia <span className="text-blue-500">Manager</span></h1>
                     </div>
                     <h2 className="text-4xl font-bold leading-tight mb-4">
                         Operational Excellence for Networks.
@@ -68,7 +68,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                 </div>
 
                 <div className="relative z-10 text-sm text-slate-500">
-                    &copy; 2025 ISP Nusantara Connect. Internal System.
+                    &copy; 2025 PT. Cakramedia Indocyber. Internal System.
                 </div>
             </div>
 
@@ -87,7 +87,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                             <input 
                                 type="email" 
                                 className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
-                                placeholder="employee@isp.com"
+                                placeholder="employee@cakramedia.net.id"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                             />

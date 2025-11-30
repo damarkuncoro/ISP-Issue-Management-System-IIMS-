@@ -1,5 +1,5 @@
 {
-  "name": "ISP Issue Management System (IIMS)",
-  "description": "A comprehensive issue management dashboard tailored for Internet Service Providers to track network, device, and customer incidents with AI-assisted diagnostics.",
+  "name": "Cakramedia Issue Management System (CIMS)",
+  "description": "A comprehensive issue management dashboard tailored for PT. Cakramedia Indocyber to track network, device, and customer incidents.",
   "requestFramePermissions": []
 }

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Ticket, TicketType } from '../../types';
-import { Activity, Server, Shield } from 'lucide-react';
+import { Activity, Server, Shield, Globe, ArrowUpRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import TopologyMap from '../TopologyMap';
 
@@ -31,6 +31,12 @@ const NetworkDashboard: React.FC<NetworkDashboardProps> = ({ tickets }) => {
     { time: '16:00', upload: 1890, download: 4800 },
     { time: '20:00', upload: 2390, download: 3800 },
     { time: '23:59', upload: 3490, download: 4300 },
+  ];
+
+  const peeringData = [
+    { exchange: 'IIX-Jakarta', asn: '24200', ipv4: '123.108.9.172', ipv6: '-', status: 'Established', traffic: '1.2 Gbps' },
+    { exchange: 'JKT-IX', asn: '24200', ipv4: '119.11.184.131', ipv6: '-', status: 'Established', traffic: '850 Mbps' },
+    { exchange: 'OpenIXP / NiCE', asn: '24200', ipv4: '218.100.27.233', ipv6: '-', status: 'Established', traffic: '2.4 Gbps' },
   ];
 
   return (
@@ -77,6 +83,55 @@ const NetworkDashboard: React.FC<NetworkDashboardProps> = ({ tickets }) => {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* PEERING EXCHANGE STATUS */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <div>
+                  <h4 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                      <Globe size={20} className="text-indigo-600" /> Public Peering Exchange Points
+                  </h4>
+                  <p className="text-sm text-slate-500">BGP Neighborhood Status for <span className="font-mono font-bold text-indigo-700">AS24200</span></p>
+              </div>
+              <div className="text-xs bg-green-50 text-green-700 px-3 py-1 rounded-full font-bold border border-green-100">
+                  All Sessions Established
+              </div>
+          </div>
+          <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50 text-slate-600 font-medium">
+                      <tr>
+                          <th className="px-6 py-3">Exchange Name</th>
+                          <th className="px-6 py-3">ASN</th>
+                          <th className="px-6 py-3">IPv4 Peer Address</th>
+                          <th className="px-6 py-3">IPv6</th>
+                          <th className="px-6 py-3">Traffic</th>
+                          <th className="px-6 py-3">Status</th>
+                      </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                      {peeringData.map((peer, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50">
+                              <td className="px-6 py-3 font-bold text-slate-800">{peer.exchange}</td>
+                              <td className="px-6 py-3 font-mono text-slate-600">{peer.asn}</td>
+                              <td className="px-6 py-3 font-mono text-blue-600">{peer.ipv4}</td>
+                              <td className="px-6 py-3 text-slate-400">{peer.ipv6}</td>
+                              <td className="px-6 py-3">
+                                  <div className="flex items-center gap-1.5 text-slate-700">
+                                      <ArrowUpRight size={14} className="text-green-500" /> {peer.traffic}
+                                  </div>
+                              </td>
+                              <td className="px-6 py-3">
+                                  <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold border border-green-200">
+                                      {peer.status}
+                                  </span>
+                              </td>
+                          </tr>
+                      ))}
+                  </tbody>
+              </table>
+          </div>
       </div>
       
       <div className="grid grid-cols-1">

@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Save, Bell, Clock, Globe, Database, RefreshCw, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Save, Bell, Clock, Globe, Database, RefreshCw, AlertTriangle, CheckCircle, MapPin, Link as LinkIcon, Hash } from 'lucide-react';
 
 interface SettingsProps {
   onSave: (section: string, data: any) => void;
@@ -11,7 +12,10 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
 
   // Mock Initial State
   const [generalConfig, setGeneralConfig] = useState({
-    companyName: 'ISP Nusantara Connect',
+    companyName: 'PT. Cakramedia Indocyber',
+    asn: '24200',
+    website: 'http://cakramedia.net.id',
+    address: 'Cyber Building Lantai 5 Jl. Kuningan Barat Raya N0. 8 Jakarta Selatan 12710',
     region: 'Jakarta (WIB)',
     currency: 'IDR',
     supportPhone: '021-555-0199'
@@ -27,7 +31,7 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
 
   const [notifConfig, setNotifConfig] = useState({
     enableWhatsapp: true,
-    whatsappGatewayIP: '192.168.1.200',
+    whatsappGatewayIP: '202.133.4.200',
     enableEmail: true,
     emailSmtp: 'smtp.gmail.com',
     notifyOnCritical: true,
@@ -90,13 +94,46 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
                 <div className="space-y-6 animate-in slide-in-from-right duration-200">
                     <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2">General Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
+                        <div className="md:col-span-2">
                             <label className="block text-sm font-medium text-slate-700 mb-1">ISP Company Name</label>
                             <input 
                                 type="text" 
-                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none font-bold"
                                 value={generalConfig.companyName}
                                 onChange={e => setGeneralConfig({...generalConfig, companyName: e.target.value})}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
+                                <Hash size={14} /> ASN (Autonomous System)
+                            </label>
+                            <input 
+                                type="text" 
+                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono text-slate-700"
+                                value={generalConfig.asn}
+                                onChange={e => setGeneralConfig({...generalConfig, asn: e.target.value})}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
+                                <LinkIcon size={14} /> Website URL
+                            </label>
+                            <input 
+                                type="text" 
+                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-blue-600"
+                                value={generalConfig.website}
+                                onChange={e => setGeneralConfig({...generalConfig, website: e.target.value})}
+                            />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
+                                <MapPin size={14} /> HQ Address
+                            </label>
+                            <textarea 
+                                rows={2}
+                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                value={generalConfig.address}
+                                onChange={e => setGeneralConfig({...generalConfig, address: e.target.value})}
                             />
                         </div>
                         <div>

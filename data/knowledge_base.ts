@@ -1,3 +1,4 @@
+
 import { KBArticle } from '../types';
 
 export const kbData: KBArticle[] = [
@@ -50,5 +51,15 @@ export const kbData: KBArticle[] = [
     last_updated: "2025-02-01",
     tags: ["Fiber Optic", "OTDR", "Field"],
     views: 56
+  },
+  {
+    id: "KB-006",
+    title: "Education: Understanding CPE (Customer Premises Equipment)",
+    category: "Policy",
+    content: "DEFINITION:\nCPE (Customer Premises Equipment) is any hardware located at the customer's home/office.\n\nCOMMON DEVICE TYPES:\n1. ONU/ONT (Modem Fiber): Converts light signal to digital (e.g., ZTE F609, Huawei HG8245).\n2. WiFi Router: Broadcasts wireless signal (e.g., TP-Link, Tenda).\n3. STB (Set Top Box): For IPTV services.\n\nOWNERSHIP MODELS:\n- Rental/Lended: Property of ISP. Must be retrieved upon termination.\n- Owned: Purchased by customer. Customer responsibility if broken.\n\nHANDLING:\n- Always record SN and MAC address in the Inventory module.\n- Use Bridge Mode for Corporate clients to allow them to use their own routers.",
+    author: "Training Dept",
+    last_updated: "2025-11-28",
+    tags: ["CPE", "Hardware", "Basic Knowledge", "Onboarding"],
+    views: 12
   }
 ];

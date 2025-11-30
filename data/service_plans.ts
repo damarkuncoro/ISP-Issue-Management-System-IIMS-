@@ -1,3 +1,4 @@
+
 export const servicePlansData = [
   {
     "id": "PLAN-RES-20",
@@ -39,6 +40,47 @@ export const servicePlansData = [
     "sla_percentage": 99.9,
     "category": "Dedicated",
     "description": "1:1 Ratio, Direct Backbone Connection, Priority Support.",
+    "active": true
+  },
+  // --- REAL WORLD PLANS (ROBINSON POP) ---
+  {
+    "id": "PLAN-CORP-10",
+    "name": "Corporate 10 Mbps",
+    "speed_mbps": 10,
+    "price": 1500000,
+    "sla_percentage": 99.5,
+    "category": "Corporate",
+    "description": "Dedicated connection for small office.",
+    "active": true
+  },
+  {
+    "id": "PLAN-CORP-15",
+    "name": "Corporate 15 Mbps",
+    "speed_mbps": 15,
+    "price": 2000000,
+    "sla_percentage": 99.5,
+    "category": "Corporate",
+    "description": "Mid-tier corporate link.",
+    "active": true
+  },
+  {
+    "id": "PLAN-CORP-20",
+    "name": "Corporate 20 Mbps",
+    "speed_mbps": 20,
+    "price": 2500000,
+    "sla_percentage": 99.5,
+    "category": "Corporate",
+    "description": "High availability corporate link.",
+    "active": true
+  },
+  {
+    "id": "PLAN-MIX-150",
+    "name": "IX 150MB / IIX 120MB",
+    "speed_mbps": 150,
+    "price": 8500000,
+    "sla_percentage": 99.9,
+    "category": "Dedicated",
+    "description": "Custom high-capacity mixed bandwidth.",
     "active": true
   }
 ];

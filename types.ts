@@ -107,6 +107,10 @@ export interface Device {
   mac_address: string;
   serial_number: string;
   location: string;
+  coordinates?: { // Added coordinates for Topology Map
+    lat: number;
+    lng: number;
+  };
   status: DeviceStatus;
   last_updated: string;
   installed_by?: string;

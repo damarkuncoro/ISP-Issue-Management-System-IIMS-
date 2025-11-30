@@ -1,57 +1,156 @@
 import React, { useEffect, useRef } from 'react';
-import { Ticket, Severity, TicketStatus } from '../types';
+import { Ticket, Severity, TicketStatus, Device, DeviceStatus, DeviceType } from '../types';
 
 declare const L: any;
 
 interface TopologyMapProps {
-  tickets: Ticket[];
+  tickets?: Ticket[];
+  devices?: Device[];
 }
 
-const TopologyMap: React.FC<TopologyMapProps> = ({ tickets }) => {
+const TopologyMap: React.FC<TopologyMapProps> = ({ tickets = [], devices = [] }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!mapContainerRef.current || mapInstanceRef.current) return;
+    if (!mapContainerRef.current) return;
 
-    // Initialize Map
-    // Default center to Jakarta
-    const map = L.map(mapContainerRef.current).setView([-6.2088, 106.8456], 9);
-    mapInstanceRef.current = map;
+    // Initialize Map only once
+    if (!mapInstanceRef.current) {
+        // Default center to Jakarta
+        const map = L.map(mapContainerRef.current).setView([-6.2088, 106.8456], 10);
+        mapInstanceRef.current = map;
 
-    // Add Tile Layer (OpenStreetMap)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
+        // Add Tile Layer (OpenStreetMap)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+    }
 
-    // Custom Icons based on Severity
-    const createIcon = (color: string) => {
-      return L.divIcon({
-        className: 'custom-div-icon',
-        html: `<div style="background-color: ${color}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.4);"></div>`,
-        iconSize: [14, 14],
-        iconAnchor: [7, 7]
-      });
-    };
+    const map = mapInstanceRef.current;
 
-    const redIcon = createIcon('#dc2626');
-    const orangeIcon = createIcon('#ea580c');
-    const blueIcon = createIcon('#2563eb');
-    const greyIcon = createIcon('#94a3b8');
+    // Clear existing layers (naive approach: remove everything and redraw)
+    map.eachLayer((layer: any) => {
+        if (!layer._url) { // Don't remove tile layer
+            map.removeLayer(layer);
+        }
+    });
 
-    // Add Markers
+    // --- DRAW LINKS (Cables) FIRST (so they are behind markers) ---
+    if (devices.length > 0) {
+        devices.forEach(device => {
+            if (device.coordinates && device.uplink_device_id) {
+                const uplink = devices.find(d => d.id === device.uplink_device_id);
+                if (uplink && uplink.coordinates) {
+                    
+                    // Determine link status color
+                    let linkColor = '#94a3b8'; // Default grey
+                    if (device.status === DeviceStatus.MAINTENANCE || uplink.status === DeviceStatus.MAINTENANCE) {
+                        linkColor = '#f59e0b'; // Orange
+                    } else if (device.status === DeviceStatus.ACTIVE && uplink.status === DeviceStatus.ACTIVE) {
+                        linkColor = '#22c55e'; // Green
+                    } else {
+                        linkColor = '#ef4444'; // Red (Broken/Pending)
+                    }
+
+                    // Draw Polyline
+                    L.polyline([
+                        [device.coordinates.lat, device.coordinates.lng],
+                        [uplink.coordinates.lat, uplink.coordinates.lng]
+                    ], {
+                        color: linkColor,
+                        weight: 2,
+                        opacity: 0.6,
+                        dashArray: linkColor === '#ef4444' ? '5, 10' : null // Dashed if broken
+                    }).addTo(map);
+                }
+            }
+        });
+    }
+
+    // --- DRAW DEVICE MARKERS ---
+    devices.forEach(device => {
+        if (device.coordinates) {
+            // Choose shape/color based on Device Type
+            let color = '#3b82f6'; // Blue
+            let shape = 'square';
+            
+            if (device.type === DeviceType.ROUTER) { color = '#6366f1'; shape = 'diamond'; } // Indigo
+            if (device.type === DeviceType.OLT) { color = '#8b5cf6'; shape = 'square'; } // Purple
+            if (device.type === DeviceType.SWITCH) { color = '#0ea5e9'; shape = 'circle'; } // Sky
+            if (device.type === DeviceType.ONU) { color = '#10b981'; shape = 'circle'; } // Green
+
+            if (device.status !== DeviceStatus.ACTIVE) color = '#94a3b8'; // Grey if offline
+
+            const iconHtml = `
+                <div style="
+                    background-color: ${color}; 
+                    width: 12px; height: 12px; 
+                    border: 2px solid white; 
+                    box-shadow: 0 0 4px rgba(0,0,0,0.4);
+                    border-radius: ${shape === 'circle' ? '50%' : '2px'};
+                    transform: ${shape === 'diamond' ? 'rotate(45deg)' : 'none'};
+                "></div>
+            `;
+
+            const icon = L.divIcon({
+                className: 'device-icon',
+                html: iconHtml,
+                iconSize: [12, 12],
+                iconAnchor: [6, 6]
+            });
+
+            L.marker([device.coordinates.lat, device.coordinates.lng], { icon })
+                .addTo(map)
+                .bindPopup(`
+                    <div style="font-family: sans-serif;">
+                        <div style="font-size: 10px; font-weight: bold; color: #64748b;">${device.type}</div>
+                        <strong style="font-size: 13px; display:block; margin-bottom:2px;">${device.name}</strong>
+                        <div style="font-size: 11px;">${device.ip_address}</div>
+                        <div style="font-size: 10px; margin-top: 4px; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; display: inline-block;">
+                            ${device.status}
+                        </div>
+                    </div>
+                `);
+        }
+    });
+
+    // --- DRAW TICKET MARKERS (Pulse Effect) ---
     tickets.forEach(ticket => {
       if (ticket.coordinates && ticket.status !== TicketStatus.CLOSED) {
-        let icon = blueIcon;
-        if (ticket.severity === Severity.CRITICAL) icon = redIcon;
-        else if (ticket.severity === Severity.MAJOR) icon = orangeIcon;
-        else if (ticket.status === TicketStatus.RESOLVED) icon = greyIcon;
+        let color = '#3b82f6';
+        if (ticket.severity === Severity.CRITICAL) color = '#dc2626';
+        else if (ticket.severity === Severity.MAJOR) color = '#ea580c';
+        else if (ticket.status === TicketStatus.RESOLVED) color = '#22c55e';
 
-        const marker = L.marker([ticket.coordinates.lat, ticket.coordinates.lng], { icon })
+        // Pulse Animation for Critical
+        const isPulse = ticket.severity === Severity.CRITICAL;
+        const pulseHtml = isPulse ? 
+            `<div style="position: absolute; width: 100%; height: 100%; border-radius: 50%; background-color: ${color}; opacity: 0.4; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>` : '';
+
+        const icon = L.divIcon({
+          className: 'ticket-icon',
+          html: `
+            <div style="position: relative; width: 20px; height: 20px;">
+                ${pulseHtml}
+                <div style="position: absolute; top: 3px; left: 3px; background-color: ${color}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
+            </div>
+            <style>
+                @keyframes ping {
+                    75%, 100% { transform: scale(2); opacity: 0; }
+                }
+            </style>
+          `,
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        });
+
+        L.marker([ticket.coordinates.lat, ticket.coordinates.lng], { icon, zIndexOffset: 1000 })
           .addTo(map)
           .bindPopup(`
             <div style="font-family: sans-serif;">
-              <strong style="font-size: 14px; display:block; margin-bottom:4px;">${ticket.id}</strong>
+              <div style="font-size: 10px; font-weight: bold; color: ${color}; uppercase">TICKET: ${ticket.severity}</div>
+              <strong style="font-size: 13px; display:block; margin-bottom:4px;">${ticket.id}</strong>
               <div style="font-size: 12px; margin-bottom:4px;">${ticket.title}</div>
               <span style="font-size: 10px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0;">${ticket.status}</span>
             </div>
@@ -59,28 +158,25 @@ const TopologyMap: React.FC<TopologyMapProps> = ({ tickets }) => {
       }
     });
 
-    // Cleanup
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-    };
-  }, [tickets]); // Re-render if tickets change (naive implementation re-inits map, optimized would update markers)
+  }, [tickets, devices]);
 
   return (
-    <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
-            <h4 className="text-lg font-semibold text-slate-800">Network Topology & Outages</h4>
+    <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
+        <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white z-10 relative">
+            <div>
+                <h4 className="text-lg font-semibold text-slate-800">Geographic Topology</h4>
+                <p className="text-xs text-slate-500">Physical assets & incident visualization</p>
+            </div>
             <div className="flex gap-4 text-xs">
-                <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-600"></span> Critical</div>
-                <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-600"></span> Major</div>
-                <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-600"></span> Minor</div>
+                <div className="flex items-center gap-1"><span className="w-3 h-1 bg-green-500"></span> Link OK</div>
+                <div className="flex items-center gap-1"><span className="w-3 h-1 bg-red-500"></span> Link Down</div>
+                <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-600 border border-white"></span> Critical Ticket</div>
+                <div className="flex items-center gap-1"><div className="w-2 h-2 bg-indigo-500 transform rotate-45"></div> Router</div>
             </div>
         </div>
         <div 
             ref={mapContainerRef} 
-            className="w-full h-80 z-0 relative"
+            className="w-full flex-1 min-h-[400px] z-0 relative"
             style={{ background: '#f8fafc' }}
         ></div>
     </div>
