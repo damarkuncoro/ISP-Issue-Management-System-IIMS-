@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Employee, EmployeeStatus, UserRole } from '../types';
-import { ArrowLeft, Mail, Phone, Calendar, Briefcase, Shield, MapPin, CheckCircle, Clock, Award, Activity, Edit, UserCheck } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, Briefcase, Shield, MapPin, CheckCircle, Clock, Award, Activity, Edit, UserCheck, FileText, History } from 'lucide-react';
 import { MOCK_EMPLOYEES } from '../constants';
 
 interface EmployeeDetailProps {
@@ -13,6 +13,7 @@ interface EmployeeDetailProps {
 
 const EmployeeDetail: React.FC<EmployeeDetailProps> = ({ employee, userRole, onBack, onUpdateEmployee }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'profile' | 'audit'>('profile');
   const [formData, setFormData] = useState<Partial<Employee>>({ ...employee });
 
   const getStatusColor = (status: EmployeeStatus) => {
@@ -229,6 +230,23 @@ const EmployeeDetail: React.FC<EmployeeDetailProps> = ({ employee, userRole, onB
         )}
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-4 border-b border-slate-200">
+          <button 
+             onClick={() => setActiveTab('profile')}
+             className={`px-4 py-2 text-sm font-medium border-b-2 transition flex items-center gap-2 ${activeTab === 'profile' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          >
+             <UserCheck size={16} /> Profile & Stats
+          </button>
+          <button 
+             onClick={() => setActiveTab('audit')}
+             className={`px-4 py-2 text-sm font-medium border-b-2 transition flex items-center gap-2 ${activeTab === 'audit' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          >
+             <History size={16} /> Audit Log
+          </button>
+      </div>
+
+      {activeTab === 'profile' ? (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Left Column: Profile Card */}
@@ -353,6 +371,58 @@ const EmployeeDetail: React.FC<EmployeeDetailProps> = ({ employee, userRole, onB
             </div>
         </div>
       </div>
+      ) : (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in">
+            <div className="p-6 border-b border-slate-100">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <FileText size={20} className="text-blue-600" /> Change History Log
+                </h3>
+                <p className="text-sm text-slate-500">Audit trail of changes made to this employee record.</p>
+            </div>
+            {employee.auditLog && employee.auditLog.length > 0 ? (
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-50 text-slate-600 font-medium">
+                            <tr>
+                                <th className="px-6 py-3">Timestamp</th>
+                                <th className="px-6 py-3">Field Changed</th>
+                                <th className="px-6 py-3">Old Value</th>
+                                <th className="px-6 py-3">New Value</th>
+                                <th className="px-6 py-3">Changed By</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {employee.auditLog.map((log) => (
+                                <tr key={log.id} className="hover:bg-slate-50">
+                                    <td className="px-6 py-4 text-slate-500 whitespace-nowrap">
+                                        {new Date(log.timestamp).toLocaleString()}
+                                    </td>
+                                    <td className="px-6 py-4 font-mono text-xs text-slate-700 uppercase">
+                                        {log.field.replace('_', ' ')}
+                                    </td>
+                                    <td className="px-6 py-4 text-red-600 line-through text-xs">
+                                        {log.old_value}
+                                    </td>
+                                    <td className="px-6 py-4 text-green-600 font-medium text-xs">
+                                        {log.new_value}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs">
+                                            {log.changed_by}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : (
+                <div className="p-12 text-center text-slate-500">
+                    No changes have been recorded for this employee yet.
+                </div>
+            )}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,36 +1,44 @@
 
 import React, { useState, useEffect } from 'react';
-import { Ticket, TicketStatus, Severity, Employee, ActivityLogEntry, Device, TicketType } from '../types';
+import { Ticket, TicketStatus, Severity, Employee, ActivityLogEntry, Device, TicketType, KBArticle } from '../types';
 import { STATUS_COLORS } from '../constants';
 import { AIAnalysisResult, analyzeTicketWithGemini } from '../services/geminiService';
 import { 
   ArrowLeft, MapPin, Server, Users, Clock, AlertTriangle, 
   CheckCircle, Play, UserPlus, PenTool, Sparkles, MessageSquare,
-  History, FileText, BrainCircuit, Activity, Link as LinkIcon, Send, Wrench, XCircle, ArrowLeftRight, Check
+  History, FileText, BrainCircuit, Activity, Link as LinkIcon, Send, Wrench, XCircle, ArrowLeftRight, Printer, BookOpen, Lightbulb, Search, ExternalLink
 } from 'lucide-react';
 import AssignTicketModal from './AssignTicketModal';
 import ResolveTicketModal from './ResolveTicketModal';
 
 interface TicketDetailProps {
   ticket: Ticket;
-  employees: Employee[]; // Passed from App for assignment
-  devices?: Device[]; // Passed for resolving device names
+  employees: Employee[]; 
+  devices?: Device[]; 
+  tickets?: Ticket[]; 
+  kbArticles?: KBArticle[]; 
   onBack: () => void;
   onUpdateStatus: (id: string, newStatus: TicketStatus) => void;
   onUpdateTicket: (id: string, data: Partial<Ticket>) => void;
   onNavigateToDevice?: (deviceId: string) => void;
   onNavigateToCustomer?: (customerId: string) => void;
+  onNavigateToInvoice?: (invoiceId: string) => void;
+  onNavigateToMaintenance?: (maintenanceId: string) => void;
 }
 
 const TicketDetail: React.FC<TicketDetailProps> = ({ 
     ticket, 
     employees, 
     devices = [],
+    tickets = [],
+    kbArticles = [],
     onBack, 
     onUpdateStatus, 
     onUpdateTicket,
     onNavigateToDevice,
-    onNavigateToCustomer 
+    onNavigateToCustomer,
+    onNavigateToInvoice,
+    onNavigateToMaintenance
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'ai' | 'history'>('overview');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -43,6 +51,19 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
   // Modal States
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
+
+  // Suggested Logic
+  const suggestedKB = kbArticles.filter(kb => 
+    ticket.title.toLowerCase().includes(kb.tags[0]?.toLowerCase() || 'xxxxx') ||
+    ticket.title.toLowerCase().includes(kb.category.toLowerCase()) ||
+    ticket.description?.toLowerCase().includes(kb.tags[0]?.toLowerCase() || 'xxxxx')
+  ).slice(0, 3);
+
+  const similarTickets = tickets.filter(t => 
+    t.id !== ticket.id && 
+    t.status === TicketStatus.RESOLVED && 
+    (t.type === ticket.type || t.device_id === ticket.device_id)
+  ).slice(0, 2);
 
   // Load persisted AI Analysis if available
   useEffect(() => {
@@ -121,8 +142,6 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
           activityLog: updatedLogs
       });
       triggerFeedback(`Assigned to ${employee.full_name}`);
-      // Optional: switch to history tab to show the new event
-      // setActiveTab('history'); 
   };
 
   const handleResolveTicket = (data: { rootCause: string; actionTaken: string; resolutionCode: string; notes: string }) => {
@@ -169,6 +188,10 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
     setNoteText('');
     setActiveTab('history'); // Switch to history to show the note
     triggerFeedback('Note Added');
+  };
+
+  const handlePrint = () => {
+      alert("Simulated: Work Order sent to Printer (PDF Generated).");
   };
 
   const getActionColor = (action: string) => {
@@ -331,6 +354,13 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
           <p className="text-slate-500">{ticket.title}</p>
         </div>
         <div className="flex items-center gap-2">
+            <button 
+                onClick={handlePrint}
+                className="flex items-center gap-2 bg-white border border-slate-300 text-slate-600 px-3 py-2 rounded-lg hover:bg-slate-50 transition shadow-sm text-sm font-medium"
+                title="Print Work Order"
+            >
+                <Printer size={16} /> <span className="hidden sm:inline">Print</span>
+            </button>
             {getNextActions()}
         </div>
       </div>
@@ -386,7 +416,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
 
               {/* Add Note Section */}
               <div className="pt-6 border-t border-slate-100">
-                 <label className="block text-sm font-medium text-slate-700 mb-2">Add Internal Note / Update</label>
+                 <label className="block text-sm font-medium text-slate-700 mb-1">Add Internal Note / Update</label>
                  <div className="relative">
                     <textarea 
                         className="w-full border border-slate-300 rounded-lg p-3 pr-12 focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -520,7 +550,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
 
         </div>
 
-        {/* RIGHT COLUMN (1/3) - STATIC METADATA */}
+        {/* RIGHT COLUMN (1/3) - STATIC METADATA & SMART INSIGHTS */}
         <div className="space-y-6">
            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">Ticket Metadata</h3>
@@ -540,12 +570,17 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                   <div>
                     <span className="block text-xs text-slate-500">Affected Device</span>
                     <span className="font-medium text-slate-800 break-all">
-                        <button 
-                            onClick={() => onNavigateToDevice && onNavigateToDevice(ticket.device_id!)} 
-                            className="text-blue-600 hover:underline flex items-start text-left gap-1 transition"
-                        >
-                            <span>{getDeviceName(ticket.device_id)}</span> <LinkIcon size={12} className="mt-1" />
-                        </button>
+                        {onNavigateToDevice ? (
+                            <button 
+                                onClick={() => onNavigateToDevice(ticket.device_id!)} 
+                                className="text-blue-600 hover:underline flex items-start text-left gap-1 transition"
+                                title="View Device Details"
+                            >
+                                <span className="font-semibold">{getDeviceName(ticket.device_id)}</span> <ExternalLink size={12} className="mt-1" />
+                            </button>
+                        ) : (
+                            <span className="text-slate-700">{getDeviceName(ticket.device_id)}</span>
+                        )}
                     </span>
                   </div>
                 </li>
@@ -572,8 +607,11 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                         <span className="block text-xs text-slate-500">Customer ID</span>
                         <span className="font-medium text-slate-800 break-all">
                             {ticket.link_id && ticket.link_id.startsWith('CID') ? (
-                                <button onClick={() => onNavigateToCustomer && onNavigateToCustomer(ticket.link_id!)} className="text-blue-600 hover:underline flex items-center gap-1">
-                                    {ticket.link_id} <LinkIcon size={10} />
+                                <button 
+                                    onClick={() => onNavigateToCustomer && onNavigateToCustomer(ticket.link_id!)} 
+                                    className="text-blue-600 hover:underline flex items-center gap-1 font-semibold"
+                                >
+                                    {ticket.link_id} <ExternalLink size={10} />
                                 </button>
                             ) : 'N/A'}
                         </span>
@@ -581,26 +619,46 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                   </li>
                 )}
                 
-                {/* NEW RELATIONAL FIELDS */}
+                {/* INVOICE RELATIONSHIP */}
                 {ticket.related_invoice_id && (
                     <li className="flex items-start gap-3">
                         <FileText className="text-slate-400 mt-0.5" size={18} />
                         <div>
                             <span className="block text-xs text-slate-500">Related Invoice</span>
-                            <span className="font-medium text-blue-600 flex items-center gap-1">
-                                {ticket.related_invoice_id} <LinkIcon size={10} />
-                            </span>
+                            {onNavigateToInvoice ? (
+                                <button 
+                                    onClick={() => onNavigateToInvoice(ticket.related_invoice_id!)}
+                                    className="font-medium text-blue-600 hover:underline flex items-center gap-1"
+                                >
+                                    {ticket.related_invoice_id} <ExternalLink size={10} />
+                                </button>
+                            ) : (
+                                <span className="font-medium text-blue-600 flex items-center gap-1">
+                                    {ticket.related_invoice_id} <LinkIcon size={10} />
+                                </span>
+                            )}
                         </div>
                     </li>
                 )}
+
+                {/* MAINTENANCE RELATIONSHIP */}
                 {ticket.related_maintenance_id && (
                     <li className="flex items-start gap-3">
                         <Wrench className="text-orange-400 mt-0.5" size={18} />
                         <div>
                             <span className="block text-xs text-slate-500">Caused by Maintenance</span>
-                            <span className="font-medium text-orange-600 flex items-center gap-1">
-                                {ticket.related_maintenance_id} <LinkIcon size={10} />
-                            </span>
+                            {onNavigateToMaintenance ? (
+                                <button 
+                                    onClick={() => onNavigateToMaintenance(ticket.related_maintenance_id!)}
+                                    className="font-medium text-orange-600 hover:underline flex items-center gap-1"
+                                >
+                                    {ticket.related_maintenance_id} <ExternalLink size={10} />
+                                </button>
+                            ) : (
+                                <span className="font-medium text-orange-600 flex items-center gap-1">
+                                    {ticket.related_maintenance_id} <LinkIcon size={10} />
+                                </span>
+                            )}
                         </div>
                     </li>
                 )}
@@ -659,6 +717,52 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                    </div>
                )}
            </div>
+
+           {/* SMART INSIGHTS SECTION */}
+           {(suggestedKB.length > 0 || similarTickets.length > 0) && (
+               <div className="bg-gradient-to-br from-slate-50 to-blue-50 p-5 rounded-xl shadow-sm border border-blue-100">
+                   <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+                       <Lightbulb size={16} className="text-yellow-500" /> Smart Suggestions
+                   </h3>
+                   
+                   {/* KB SUGGESTIONS */}
+                   {suggestedKB.length > 0 && (
+                       <div className="mb-4">
+                           <p className="text-xs font-semibold text-slate-500 mb-2">Recommended SOPs:</p>
+                           <div className="space-y-2">
+                               {suggestedKB.map(kb => (
+                                   <div key={kb.id} className="bg-white p-2.5 rounded border border-slate-200 hover:border-blue-300 hover:shadow-sm cursor-pointer transition">
+                                       <div className="flex items-start gap-2">
+                                           <BookOpen size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
+                                           <p className="text-xs font-medium text-slate-800 line-clamp-2">{kb.title}</p>
+                                       </div>
+                                   </div>
+                               ))}
+                           </div>
+                       </div>
+                   )}
+
+                   {/* SIMILAR TICKETS */}
+                   {similarTickets.length > 0 && (
+                       <div>
+                           <p className="text-xs font-semibold text-slate-500 mb-2">Similar Resolved Tickets:</p>
+                           <div className="space-y-2">
+                               {similarTickets.map(t => (
+                                   <div key={t.id} className="bg-white p-2.5 rounded border border-slate-200 hover:border-green-300 hover:shadow-sm cursor-pointer transition">
+                                       <div className="flex items-start gap-2">
+                                           <CheckCircle size={14} className="text-green-500 mt-0.5 flex-shrink-0" />
+                                           <div>
+                                               <p className="text-xs font-medium text-slate-800">{t.title}</p>
+                                               <p className="text-[10px] text-slate-500 font-mono mt-0.5">{t.id}</p>
+                                           </div>
+                                       </div>
+                                   </div>
+                               ))}
+                           </div>
+                       </div>
+                   )}
+               </div>
+           )}
 
         </div>
       </div>

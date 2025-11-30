@@ -9,7 +9,8 @@ export const employeesData = [
     "department": "Human Resources",
     "role": "HRD / Human Resources",
     "status": "Active",
-    "join_date": "2020-01-15"
+    "join_date": "2020-01-15",
+    "auditLog": []
   },
   {
     "id": "EMP-2044",
@@ -21,7 +22,8 @@ export const employeesData = [
     "role": "Field Technician",
     "status": "Active",
     "join_date": "2022-03-10",
-    "reports_to": "EMP-3002"
+    "reports_to": "EMP-3002",
+    "auditLog": []
   },
   {
     "id": "EMP-2055",
@@ -32,7 +34,8 @@ export const employeesData = [
     "department": "Sales & Marketing",
     "role": "Sales / Marketing",
     "status": "Active",
-    "join_date": "2023-06-01"
+    "join_date": "2023-06-01",
+    "auditLog": []
   },
   {
     "id": "EMP-3002",
@@ -43,7 +46,8 @@ export const employeesData = [
     "department": "Network Operations",
     "role": "NOC Engineer",
     "status": "On Leave",
-    "join_date": "2021-11-20"
+    "join_date": "2021-11-20",
+    "auditLog": []
   },
   {
     "id": "EMP-4001",
@@ -54,7 +58,8 @@ export const employeesData = [
     "department": "Finance",
     "role": "Finance / Billing",
     "status": "Active",
-    "join_date": "2022-08-15"
+    "join_date": "2022-08-15",
+    "auditLog": []
   },
   {
     "id": "EMP-1000",
@@ -65,6 +70,7 @@ export const employeesData = [
     "department": "Management",
     "role": "Manager",
     "status": "Active",
-    "join_date": "2018-05-01"
+    "join_date": "2018-05-01",
+    "auditLog": []
   }
 ];

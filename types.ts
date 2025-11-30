@@ -179,6 +179,15 @@ export enum EmployeeStatus {
   TERMINATED = 'Terminated'
 }
 
+export interface EmployeeAuditLogEntry {
+  id: string;
+  field: string;
+  old_value: string;
+  new_value: string;
+  changed_by: string; // Role or Name
+  timestamp: string;
+}
+
 export interface Employee {
   id: string; // EMP-xxxx
   full_name: string;
@@ -190,6 +199,7 @@ export interface Employee {
   status: EmployeeStatus;
   join_date: string;
   reports_to?: string; // ID of the manager (another Employee)
+  auditLog?: EmployeeAuditLogEntry[];
 }
 
 // --- INVOICE TYPES ---

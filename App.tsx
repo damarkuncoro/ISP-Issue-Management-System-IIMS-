@@ -22,7 +22,7 @@ import AIAssistant from './components/AIAssistant';
 import Reports from './components/Reports';
 import KnowledgeBase from './components/KnowledgeBase';
 import { MOCK_TICKETS, MOCK_DEVICES, MOCK_CUSTOMERS, MOCK_SERVICE_PLANS, MOCK_EMPLOYEES, MOCK_INVOICES, MOCK_MAINTENANCE, MOCK_KB } from './constants';
-import { Ticket, TicketStatus, ActivityLogEntry, Severity, UserRole, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, Invoice, InvoiceStatus, Maintenance, MaintenanceStatus, KBArticle, TicketType } from './types';
+import { Ticket, TicketStatus, ActivityLogEntry, Severity, UserRole, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, Invoice, InvoiceStatus, Maintenance, MaintenanceStatus, KBArticle, TicketType, EmployeeAuditLogEntry } from './types';
 import { generateTicketSummary } from './services/geminiService';
 
 enum View {
@@ -74,6 +74,8 @@ const App: React.FC = () => {
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   
   const [deviceFilter, setDeviceFilter] = useState<string>('');
+  const [invoiceFilter, setInvoiceFilter] = useState<string>('');
+  const [maintenanceFilter, setMaintenanceFilter] = useState<string>('');
 
   const [aiSummary, setAiSummary] = useState<string>('');
   
@@ -434,17 +436,50 @@ const App: React.FC = () => {
      const newId = `EMP-${Math.floor(Math.random() * 8000) + 2000}`;
      const newEmp: Employee = {
          id: newId,
-         ...empData
+         ...empData,
+         auditLog: []
      };
      setEmployees([...employees, newEmp]);
      showNotification('Employee Added', `New employee ${newEmp.full_name} registered to system.`, 'success');
   };
 
   const handleUpdateEmployee = (id: string, data: any) => {
-    setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...data } : e));
+    const originalEmployee = employees.find(e => e.id === id);
+    const newLogs: EmployeeAuditLogEntry[] = [];
+    const timestamp = new Date().toISOString();
+
+    if (originalEmployee) {
+        // Detect Changes
+        Object.keys(data).forEach(key => {
+            const field = key as keyof Employee;
+            // Ignore array/object deep comparison for simple version, and ignore auditLog itself
+            if (field === 'auditLog') return;
+            
+            const oldValue = originalEmployee[field];
+            const newValue = data[field];
+
+            if (oldValue !== newValue) {
+                newLogs.push({
+                    id: `audit-${Date.now()}-${field}`,
+                    field: field,
+                    old_value: String(oldValue || 'N/A'),
+                    new_value: String(newValue || 'N/A'),
+                    changed_by: currentUserRole,
+                    timestamp: timestamp
+                });
+            }
+        });
+    }
+
+    const updatedData = { 
+        ...data, 
+        auditLog: [ ...newLogs, ...(originalEmployee?.auditLog || []) ] 
+    };
+
+    setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...updatedData } : e));
     
     if (selectedEmployee && selectedEmployee.id === id) {
-        setSelectedEmployee({ ...selectedEmployee, ...data });
+        setSelectedEmployee({ ...selectedEmployee, ...updatedData });
     }
     
     showNotification('Employee Updated', 'Employee record has been updated successfully.', 'success');
@@ -471,6 +506,11 @@ const App: React.FC = () => {
       showNotification('Invoice Generated', `Invoice ${newId} created for ${formatCurrency(newInvoice.amount)}.`, 'success');
   };
 
+  const handleNavigateToInvoice = (invoiceId: string) => {
+      setInvoiceFilter(invoiceId);
+      setCurrentView(View.BILLING);
+  }
+
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumSignificantDigits: 3 }).format(val);
   };
@@ -490,6 +530,11 @@ const App: React.FC = () => {
   const handleUpdateMaintenanceStatus = (id: string, status: MaintenanceStatus) => {
       setMaintenanceList(prev => prev.map(m => m.id === id ? { ...m, status } : m));
       showNotification('Status Updated', `Maintenance ${id} marked as ${status}.`, 'info');
+  };
+
+  const handleNavigateToMaintenance = (maintenanceId: string) => {
+      setMaintenanceFilter(maintenanceId);
+      setCurrentView(View.MAINTENANCE);
   };
 
 
@@ -767,6 +812,7 @@ const App: React.FC = () => {
                     userRole={currentUserRole}
                     onAddMaintenance={handleAddMaintenance}
                     onUpdateStatus={handleUpdateMaintenanceStatus}
+                    highlightId={maintenanceFilter}
                 />
               )}
               {currentView === View.REPORTS && (
@@ -788,6 +834,7 @@ const App: React.FC = () => {
                     userRole={currentUserRole}
                     onUpdateStatus={handleInvoiceStatusUpdate}
                     onCreateInvoice={handleCreateInvoice}
+                    preSetFilter={invoiceFilter}
                 />
               )}
               {currentView === View.SERVICE_PLANS && (
@@ -811,11 +858,15 @@ const App: React.FC = () => {
                   ticket={selectedTicket} 
                   employees={employees} 
                   devices={devices} 
+                  tickets={tickets} 
+                  kbArticles={kbArticles} 
                   onBack={() => setCurrentView(View.TICKETS)}
                   onUpdateStatus={handleUpdateStatus}
                   onUpdateTicket={handleUpdateTicket}
                   onNavigateToDevice={handleNavigateToDevice}
                   onNavigateToCustomer={handleNavigateToCustomer}
+                  onNavigateToInvoice={handleNavigateToInvoice}
+                  onNavigateToMaintenance={handleNavigateToMaintenance}
                 />
               )}
               {currentView === View.DETAIL_CUSTOMER && selectedCustomer && (
@@ -824,7 +875,8 @@ const App: React.FC = () => {
                     userRole={currentUserRole}
                     servicePlans={servicePlans}
                     invoices={invoices}
-                    devices={devices} 
+                    devices={devices}
+                    tickets={tickets} 
                     onBack={() => setCurrentView(View.CUSTOMERS)}
                     onUpdateCustomer={handleUpdateCustomer}
                     onCreateTicket={handleCreateTicket} 

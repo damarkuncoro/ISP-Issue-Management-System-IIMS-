@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Device, DeviceStatus, UserRole, Customer } from '../types';
-import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User, Network, Eye, List, GitGraph } from 'lucide-react';
+import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User, Network, Eye, List, GitGraph, Upload } from 'lucide-react';
 import AddDeviceModal from './AddDeviceModal';
+import ImportDeviceModal from './ImportDeviceModal';
 import NetworkTopologyTree from './NetworkTopologyTree';
 
 interface DeviceInventoryProps {
@@ -19,6 +20,7 @@ interface DeviceInventoryProps {
 const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, customers = [], onAddDevice, onUpdateDevice, onValidateDevice, onSelectDevice, preSetFilter }) => {
   const [filterText, setFilterText] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
   const [viewMode, setViewMode] = useState<'LIST' | 'TREE'>('LIST');
 
@@ -78,6 +80,12 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
       }
   };
 
+  const handleBulkImport = (newDevices: any[]) => {
+      // In a real app, this might be a single bulk API call
+      // Here we iterate to simulate
+      newDevices.forEach(d => onAddDevice(d));
+  };
+
   const getCustomerName = (custId?: string) => {
       if (!custId) return null;
       const c = customers.find(x => x.id === custId);
@@ -101,6 +109,13 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
         device={editingDevice}
         customers={customers}
         allDevices={devices} // Pass all devices for uplink selection
+      />
+
+      <ImportDeviceModal 
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={handleBulkImport}
+        userRole={userRole}
       />
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -130,12 +145,21 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
 
              {/* Only Technical roles can Add Devices */}
              {(canEdit || canValidate) && (
-                 <button 
-                    onClick={handleOpenAdd}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 transition shadow-sm"
-                >
-                    <Plus size={20} /> Register Device
-                 </button>
+                 <>
+                    <button 
+                        onClick={() => setIsImportModalOpen(true)}
+                        className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2.5 rounded-lg flex items-center gap-2 transition shadow-sm"
+                        title="Import from CSV"
+                    >
+                        <Upload size={20} />
+                    </button>
+                    <button 
+                        onClick={handleOpenAdd}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 transition shadow-sm"
+                    >
+                        <Plus size={20} /> Register Device
+                    </button>
+                 </>
              )}
          </div>
       </div>

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Maintenance, MaintenanceStatus, UserRole } from '../types';
 import { Calendar, Plus, Clock, MapPin, AlertTriangle, CheckCircle, X, Wrench, Megaphone } from 'lucide-react';
 
@@ -7,9 +8,10 @@ interface MaintenanceScheduleProps {
   userRole: UserRole;
   onAddMaintenance: (data: any) => void;
   onUpdateStatus: (id: string, status: MaintenanceStatus) => void;
+  highlightId?: string;
 }
 
-const MaintenanceSchedule: React.FC<MaintenanceScheduleProps> = ({ maintenanceList, userRole, onAddMaintenance, onUpdateStatus }) => {
+const MaintenanceSchedule: React.FC<MaintenanceScheduleProps> = ({ maintenanceList, userRole, onAddMaintenance, onUpdateStatus, highlightId }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<Partial<Maintenance>>({
     title: '',
@@ -22,6 +24,10 @@ const MaintenanceSchedule: React.FC<MaintenanceScheduleProps> = ({ maintenanceLi
   });
 
   const canEdit = userRole === UserRole.NOC || userRole === UserRole.NETWORK || userRole === UserRole.MANAGER;
+
+  // Optional: Auto-scroll or bring the highlighted item to top could be implemented here
+  // For now, we'll sort or filter to show highlighted item first if needed, 
+  // but just adding a visual highlight class is sufficient for this requirement.
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,7 +138,12 @@ const MaintenanceSchedule: React.FC<MaintenanceScheduleProps> = ({ maintenanceLi
       {/* LIST */}
       <div className="space-y-4">
          {maintenanceList.map(item => (
-             <div key={item.id} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-6 relative overflow-hidden">
+             <div 
+                key={item.id} 
+                className={`bg-white p-6 rounded-xl shadow-sm border flex flex-col md:flex-row gap-6 relative overflow-hidden transition-all ${
+                    highlightId === item.id ? 'border-blue-500 ring-2 ring-blue-100' : 'border-slate-200'
+                }`}
+             >
                  {/* Left Indicator Strip */}
                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
                      item.status === MaintenanceStatus.SCHEDULED ? 'bg-blue-500' :

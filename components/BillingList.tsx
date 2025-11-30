@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Invoice, InvoiceStatus, UserRole, Customer } from '../types';
 import { Search, DollarSign, AlertCircle, CheckCircle, Clock, FileText, Download, Plus } from 'lucide-react';
 import GenerateInvoiceModal from './GenerateInvoiceModal';
@@ -10,12 +10,19 @@ interface BillingListProps {
   userRole: UserRole;
   onUpdateStatus?: (id: string, status: InvoiceStatus) => void;
   onCreateInvoice?: (data: any) => void;
+  preSetFilter?: string;
 }
 
-const BillingList: React.FC<BillingListProps> = ({ invoices, customers, userRole, onUpdateStatus, onCreateInvoice }) => {
+const BillingList: React.FC<BillingListProps> = ({ invoices, customers, userRole, onUpdateStatus, onCreateInvoice, preSetFilter }) => {
   const [filterText, setFilterText] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (preSetFilter) {
+        setFilterText(preSetFilter);
+    }
+  }, [preSetFilter]);
 
   const filteredInvoices = invoices.filter(inv => {
     const cust = customers.find(c => c.id === inv.customer_id);
@@ -39,7 +46,7 @@ const BillingList: React.FC<BillingListProps> = ({ invoices, customers, userRole
   };
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(val);
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumSignificantDigits: 3 }).format(val);
   };
 
   const getCustomerName = (id: string) => {
