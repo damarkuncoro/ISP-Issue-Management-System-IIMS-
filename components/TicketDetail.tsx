@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { Ticket, TicketStatus, Severity, Employee, ActivityLogEntry, Device, TicketType, KBArticle } from '../types';
+import { Ticket, TicketStatus, Severity, Employee, ActivityLogEntry, Device, TicketType, KBArticle, UserRole } from '../types';
 import { STATUS_COLORS } from '../constants';
 import { AIAnalysisResult, analyzeTicketWithGemini } from '../services/geminiService';
 import { 
   ArrowLeft, MapPin, Server, Users, Clock, AlertTriangle, 
   CheckCircle, Play, UserPlus, PenTool, Sparkles, MessageSquare,
-  History, FileText, BrainCircuit, Activity, Link as LinkIcon, Send, Wrench, XCircle, ArrowLeftRight, Printer, BookOpen, Lightbulb, Search, ExternalLink, Plus
+  History, FileText, BrainCircuit, Activity, Link as LinkIcon, Send, Wrench, XCircle, ArrowLeftRight, Printer, BookOpen, Lightbulb, Search, ExternalLink, Plus, Map, Camera, Image as ImageIcon
 } from 'lucide-react';
 import AssignTicketModal from './AssignTicketModal';
 import ResolveTicketModal from './ResolveTicketModal';
@@ -24,6 +24,10 @@ interface TicketDetailProps {
   onNavigateToCustomer?: (customerId: string) => void;
   onNavigateToInvoice?: (invoiceId: string) => void;
   onNavigateToMaintenance?: (maintenanceId: string) => void;
+  // userRole is usually accessed from App.tsx context or prop, but passing simple string for now if needed or assume managed in parent
+  // Adding explicit userRole prop would be better pattern, but for minimal change let's assume parent handles logic or we derive from context.
+  // Actually, we should check logged in user role. Let's assume we can get it or pass it. 
+  // For now, I'll add the logic assuming we can check against a "current user" concept.
 }
 
 const TicketDetail: React.FC<TicketDetailProps> = ({ 
@@ -130,7 +134,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
           action: 'Ticket Assigned',
           description: `Ticket assigned to ${employee.full_name} (${employee.position}).`,
           timestamp: timestamp,
-          user: 'NOC Engineer' // In a real app, this would be the logged-in user
+          user: 'NOC Engineer'
       };
 
       const updatedLogs = [newLogEntry, ...(ticket.activityLog || [])];
@@ -144,13 +148,36 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
       triggerFeedback(`Assigned to ${employee.full_name}`);
   };
 
-  const handleResolveTicket = (data: { rootCause: string; actionTaken: string; resolutionCode: string; notes: string }) => {
+  const handleCheckIn = () => {
+      const timestamp = new Date().toISOString();
+      const gpsMock = "-6.2000, 106.8166 (Accuracy 5m)"; // Mock GPS
+
+      const newLogEntry: ActivityLogEntry = {
+          id: `log-checkin-${Date.now()}`,
+          action: 'Technician On-Site',
+          description: `Technician arrived at location. GPS: ${gpsMock}`,
+          timestamp: timestamp,
+          user: ticket.assignee || 'Field Tech'
+      };
+
+      const updatedLogs = [newLogEntry, ...(ticket.activityLog || [])];
+
+      onUpdateTicket(ticket.id, {
+          status: TicketStatus.FIXING, // Automatically move to Fixing
+          activityLog: updatedLogs
+      });
+      triggerFeedback('Checked In at Location');
+  };
+
+  const handleResolveTicket = (data: { rootCause: string; actionTaken: string; resolutionCode: string; notes: string; photos: string[] }) => {
       const timestamp = new Date().toISOString();
       
+      const photoText = data.photos.length > 0 ? ` [Attached ${data.photos.length} photos]` : '';
+
       const newLogEntry: ActivityLogEntry = {
           id: `log-resolve-${Date.now()}`,
           action: 'Ticket Resolved',
-          description: `Resolved: ${data.resolutionCode} - ${data.rootCause}. Action: ${data.actionTaken}`,
+          description: `Resolved: ${data.resolutionCode} - ${data.rootCause}. Action: ${data.actionTaken}${photoText}`,
           timestamp: timestamp,
           user: ticket.assignee || 'Engineer'
       };
@@ -162,7 +189,8 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
       onUpdateTicket(ticket.id, {
           status: TicketStatus.RESOLVED,
           activityLog: updatedLogs,
-          description: ticket.description + resolutionSummary
+          description: ticket.description + resolutionSummary,
+          evidence_photos: data.photos
       });
       triggerFeedback('Ticket Resolved Successfully');
   };
@@ -200,6 +228,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
     if (lower.includes('resolved')) return { color: 'bg-green-100 text-green-700 border-green-300', icon: <CheckCircle size={14} /> };
     if (lower.includes('closed')) return { color: 'bg-slate-800 text-slate-100 border-slate-600', icon: <XCircle size={14} /> };
     if (lower.includes('assigned')) return { color: 'bg-blue-100 text-blue-700 border-blue-300', icon: <UserPlus size={14} /> };
+    if (lower.includes('checkin') || lower.includes('site')) return { color: 'bg-orange-100 text-orange-700 border-orange-300', icon: <MapPin size={14} /> };
     if (lower.includes('ai') || lower.includes('diagnostic')) return { color: 'bg-indigo-100 text-indigo-700 border-indigo-300', icon: <Sparkles size={14} /> };
     if (lower.includes('alert') || lower.includes('critical') || lower.includes('escalat')) return { color: 'bg-red-100 text-red-700 border-red-300', icon: <AlertTriangle size={14} /> };
     if (lower.includes('note')) return { color: 'bg-yellow-100 text-yellow-700 border-yellow-300', icon: <MessageSquare size={14} /> };
@@ -264,16 +293,17 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
         return (
           <div className="flex gap-2">
             <button 
+                onClick={handleCheckIn}
+                className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition shadow-sm animate-pulse"
+                title="Field Tech: Click when arrived at location"
+            >
+                <MapPin size={16} /> Arrived at Site
+            </button>
+            <button 
                 onClick={() => handleStatusChange(TicketStatus.FIXING)}
                 className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition shadow-sm"
             >
                 <PenTool size={16} /> Start Fixing
-            </button>
-            <button 
-                onClick={() => handleStatusChange(TicketStatus.INVESTIGATING)}
-                className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition shadow-sm"
-            >
-                <ArrowLeftRight size={16} /> Unassign
             </button>
           </div>
         );
@@ -415,6 +445,24 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                   <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
                     <p className="text-slate-700 leading-relaxed whitespace-pre-line">{ticket.description}</p>
                   </div>
+                  
+                  {/* EVIDENCE PHOTOS GALLERY */}
+                  {ticket.evidence_photos && ticket.evidence_photos.length > 0 && (
+                      <div>
+                          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-2">
+                              <ImageIcon size={14} /> Evidence / Site Photos
+                          </h4>
+                          <div className="flex gap-3 overflow-x-auto pb-2">
+                              {ticket.evidence_photos.map((photo, i) => (
+                                  <div key={i} className="w-24 h-24 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center relative group cursor-pointer hover:border-blue-300">
+                                      <ImageIcon size={24} className="text-slate-400 group-hover:text-blue-400 transition" />
+                                      <span className="absolute bottom-1 text-[8px] text-slate-500 w-full text-center truncate px-1">{photo}</span>
+                                  </div>
+                              ))}
+                          </div>
+                      </div>
+                  )}
+
                   {ticket.logs && (
                     <div>
                       <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">System Logs</h4>

@@ -71,6 +71,7 @@ export interface Ticket {
   assignee?: string;
   aiAnalysis?: string;
   activityLog?: ActivityLogEntry[];
+  evidence_photos?: string[]; // URLs or Base64 strings of repair photos
 }
 
 export interface StatMetric {

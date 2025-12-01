@@ -75,14 +75,14 @@ const TopologyMap: React.FC<TopologyMapProps> = ({ tickets = [], devices = [] })
             // Choose shape/color based on Device Type
             let color = '#3b82f6'; // Blue
             let shape = 'square';
-            let label = device.type;
+            let label: string = device.type;
             
             if (device.type === DeviceType.ROUTER) { color = '#6366f1'; shape = 'diamond'; } // Indigo
             if (device.type === DeviceType.OLT) { color = '#8b5cf6'; shape = 'square'; } // Purple
             if (device.type === DeviceType.SWITCH) { color = '#0ea5e9'; shape = 'circle'; } // Sky
             if (device.type === DeviceType.ONU) { color = '#10b981'; shape = 'circle'; } // Green
-            if (device.type === DeviceType.ODP || device.type === 'ODP (Passive)') { color = '#ec4899'; shape = 'triangle'; label = 'ODP'; } // Pink
-            if (device.type === DeviceType.ODC || device.type === 'ODC (Passive)') { color = '#64748b'; shape = 'square'; label = 'ODC'; } // Slate
+            if (device.type === DeviceType.ODP) { color = '#ec4899'; shape = 'triangle'; label = 'ODP'; } // Pink
+            if (device.type === DeviceType.ODC) { color = '#64748b'; shape = 'square'; label = 'ODC'; } // Slate
 
             if (device.status !== DeviceStatus.ACTIVE) color = '#94a3b8'; // Grey if offline
 

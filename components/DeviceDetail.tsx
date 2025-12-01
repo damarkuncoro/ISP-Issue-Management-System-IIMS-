@@ -41,8 +41,8 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
   const linkedCustomer = customers.find(c => c.id === device.customer_id);
 
   const isOLT = device.type === DeviceType.OLT;
-  const isODP = device.type === DeviceType.ODP || device.type === 'ODP (Passive)';
-  const isPassive = isODP || device.type === DeviceType.ODC || device.type === 'ODC (Passive)';
+  const isODP = device.type === DeviceType.ODP;
+  const isPassive = isODP || device.type === DeviceType.ODC;
 
   const canEdit = userRole === UserRole.NETWORK || userRole === UserRole.NOC || userRole === UserRole.INVENTORY_ADMIN || userRole === UserRole.MANAGER;
   

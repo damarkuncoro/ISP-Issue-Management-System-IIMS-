@@ -1,12 +1,12 @@
 
 import React, { useState } from 'react';
 import { Ticket, TicketStatus, ActivityLogEntry } from '../types';
-import { X, CheckCircle, AlertTriangle, FileText } from 'lucide-react';
+import { X, CheckCircle, AlertTriangle, FileText, Camera, Image as ImageIcon, Trash2 } from 'lucide-react';
 
 interface ResolveTicketModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onResolve: (data: { rootCause: string; actionTaken: string; resolutionCode: string; notes: string }) => void;
+  onResolve: (data: { rootCause: string; actionTaken: string; resolutionCode: string; notes: string; photos: string[] }) => void;
   ticket: Ticket;
 }
 
@@ -38,13 +38,24 @@ const ResolveTicketModal: React.FC<ResolveTicketModalProps> = ({ isOpen, onClose
     resolutionCode: '',
     notes: ''
   });
+  const [photos, setPhotos] = useState<string[]>([]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onResolve(formData);
+    onResolve({ ...formData, photos });
     onClose();
+  };
+
+  const handleAddPhoto = () => {
+      // Mock photo upload
+      const mockPhoto = `photo-evidence-${Date.now()}.jpg`;
+      setPhotos([...photos, mockPhoto]);
+  };
+
+  const handleRemovePhoto = (index: number) => {
+      setPhotos(photos.filter((_, i) => i !== index));
   };
 
   return (
@@ -112,6 +123,33 @@ const ResolveTicketModal: React.FC<ResolveTicketModalProps> = ({ isOpen, onClose
                   {RESOLUTION_CODES.map(code => <option key={code} value={code}>{code}</option>)}
                 </select>
              </div>
+          </div>
+
+          <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Evidence Photos (Optional)</label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                  {photos.map((photo, idx) => (
+                      <div key={idx} className="relative bg-slate-100 border border-slate-200 rounded-lg p-2 w-20 h-20 flex items-center justify-center group">
+                          <ImageIcon size={24} className="text-slate-400" />
+                          <button 
+                            type="button"
+                            onClick={() => handleRemovePhoto(idx)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition shadow-sm"
+                          >
+                              <X size={12} />
+                          </button>
+                          <span className="absolute bottom-1 text-[8px] text-slate-500 truncate w-full text-center">{photo}</span>
+                      </div>
+                  ))}
+                  <button 
+                    type="button"
+                    onClick={handleAddPhoto}
+                    className="w-20 h-20 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:text-green-600 hover:border-green-400 hover:bg-green-50 transition"
+                  >
+                      <Camera size={20} />
+                      <span className="text-[10px] mt-1 font-bold">Add Photo</span>
+                  </button>
+              </div>
           </div>
 
           <div>
