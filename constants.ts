@@ -1,5 +1,5 @@
 
-import { Ticket, TicketStatus, Severity, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, EmployeeStatus, UserRole, Invoice, Maintenance, KBArticle, RadiusSession, RadiusLog } from './types';
+import { Ticket, TicketStatus, Severity, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, EmployeeStatus, UserRole, Invoice, Maintenance, KBArticle, RadiusSession, RadiusLog, SyslogMessage } from './types';
 
 import { ticketsData } from './data/tickets';
 import { devicesData } from './data/devices';
@@ -10,6 +10,7 @@ import { invoicesData } from './data/invoices';
 import { maintenanceData } from './data/maintenance';
 import { kbData } from './data/knowledge_base';
 import { radiusSessionsData, radiusLogsData } from './data/radius';
+import { syslogsData } from './data/syslogs';
 
 // Mapping or casting JSON data to Types
 // Note: JSON strings must match the Enum string values defined in types.ts
@@ -47,3 +48,5 @@ export const MOCK_KB: KBArticle[] = kbData;
 
 export const MOCK_RADIUS_SESSIONS: RadiusSession[] = radiusSessionsData;
 export const MOCK_RADIUS_LOGS: RadiusLog[] = radiusLogsData;
+
+export const MOCK_SYSLOGS: SyslogMessage[] = syslogsData;

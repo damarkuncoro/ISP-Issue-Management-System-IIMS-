@@ -300,3 +300,27 @@ export interface RadiusLog {
   nas_ip: string;
   mac_address?: string;
 }
+
+// --- SYSLOG TYPES ---
+
+export enum SyslogLevel {
+  EMERGENCY = 'Emergency', // 0
+  ALERT = 'Alert',         // 1
+  CRITICAL = 'Critical',   // 2
+  ERROR = 'Error',         // 3
+  WARNING = 'Warning',     // 4
+  NOTICE = 'Notice',       // 5
+  INFO = 'Info',           // 6
+  DEBUG = 'Debug'          // 7
+}
+
+export interface SyslogMessage {
+  id: string;
+  timestamp: string;
+  hostname: string;
+  ip_address: string;
+  level: SyslogLevel;
+  facility?: string; // e.g., 'system', 'daemon', 'local0'
+  app_name?: string; // e.g., 'sshd', 'bgp', 'kernel'
+  message: string;
+}

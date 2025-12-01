@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Ticket as TicketIcon, Settings as SettingsIcon, Bell, Search, User, Menu, X, ChevronDown, Server, Users, DollarSign, Briefcase, CreditCard, LogOut, Calendar, FileText, Book, Shield } from 'lucide-react';
+import { LayoutDashboard, Ticket as TicketIcon, Settings as SettingsIcon, Bell, Search, User, Menu, X, ChevronDown, Server, Users, DollarSign, Briefcase, CreditCard, LogOut, Calendar, FileText, Book, Shield, Terminal } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TicketList from './components/TicketList';
 import TicketDetail from './components/TicketDetail';
@@ -22,8 +21,9 @@ import AIAssistant from './components/AIAssistant';
 import Reports from './components/Reports';
 import KnowledgeBase from './components/KnowledgeBase';
 import RadiusManagement from './components/RadiusManagement';
-import { MOCK_TICKETS, MOCK_DEVICES, MOCK_CUSTOMERS, MOCK_SERVICE_PLANS, MOCK_EMPLOYEES, MOCK_INVOICES, MOCK_MAINTENANCE, MOCK_KB, MOCK_RADIUS_SESSIONS, MOCK_RADIUS_LOGS } from './constants';
-import { Ticket, TicketStatus, ActivityLogEntry, Severity, UserRole, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, Invoice, InvoiceStatus, Maintenance, MaintenanceStatus, KBArticle, TicketType, EmployeeAuditLogEntry, RadiusSession, RadiusLog } from './types';
+import SyslogViewer from './components/SyslogViewer';
+import { MOCK_TICKETS, MOCK_DEVICES, MOCK_CUSTOMERS, MOCK_SERVICE_PLANS, MOCK_EMPLOYEES, MOCK_INVOICES, MOCK_MAINTENANCE, MOCK_KB, MOCK_RADIUS_SESSIONS, MOCK_RADIUS_LOGS, MOCK_SYSLOGS } from './constants';
+import { Ticket, TicketStatus, ActivityLogEntry, Severity, UserRole, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, Invoice, InvoiceStatus, Maintenance, MaintenanceStatus, KBArticle, TicketType, EmployeeAuditLogEntry, RadiusSession, RadiusLog, SyslogMessage } from './types';
 import { generateTicketSummary } from './services/geminiService';
 
 enum View {
@@ -38,6 +38,7 @@ enum View {
   REPORTS = 'reports',
   KNOWLEDGE_BASE = 'knowledge_base',
   RADIUS = 'radius',
+  SYSLOG = 'syslog', // New View
   DETAIL_TICKET = 'detail_ticket',
   DETAIL_CUSTOMER = 'detail_customer',
   DETAIL_EMPLOYEE = 'detail_employee',
@@ -579,7 +580,7 @@ const App: React.FC = () => {
     return (
         <button 
         onClick={() => { setCurrentView(view); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
             isActive
             ? 'bg-blue-600 text-white shadow-md' 
             : 'text-slate-400 hover:bg-slate-800 hover:text-white'
@@ -591,13 +592,23 @@ const App: React.FC = () => {
     );
   };
 
-  // Permission Logic for Menu Items
+  const NavGroup = ({ title, children }: { title: string, children?: React.ReactNode }) => (
+      <div className="mb-4">
+          <h4 className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">{title}</h4>
+          <div className="space-y-1">
+              {children}
+          </div>
+      </div>
+  );
+
+  // Permission Logic
   const canManagePlans = currentUserRole === UserRole.PRODUCT_MANAGER || currentUserRole === UserRole.MANAGER;
   const canManageEmployees = currentUserRole === UserRole.HRD || currentUserRole === UserRole.MANAGER;
   const canViewBilling = currentUserRole === UserRole.FINANCE || currentUserRole === UserRole.MANAGER || currentUserRole === UserRole.SALES;
   const canViewMaintenance = currentUserRole === UserRole.NOC || currentUserRole === UserRole.MANAGER || currentUserRole === UserRole.NETWORK || currentUserRole === UserRole.CS;
   const canViewReports = currentUserRole === UserRole.MANAGER || currentUserRole === UserRole.FINANCE || currentUserRole === UserRole.NOC;
   const canViewRadius = currentUserRole === UserRole.NOC || currentUserRole === UserRole.NETWORK || currentUserRole === UserRole.MANAGER;
+  const canViewSyslog = currentUserRole === UserRole.NOC || currentUserRole === UserRole.NETWORK || currentUserRole === UserRole.MANAGER;
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -640,35 +651,47 @@ const App: React.FC = () => {
           </div>
 
           {/* Nav - SCROLLABLE AREA */}
-          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-            <NavItem view={View.DASHBOARD} icon={<LayoutDashboard size={20} />} label="Dashboard" />
-            <NavItem view={View.TICKETS} icon={<TicketIcon size={20} />} label="Issue Tickets" />
-            <NavItem view={View.DEVICES} icon={<Server size={20} />} label="Inventory & Topology" />
+          <nav className="flex-1 p-4 overflow-y-auto">
             
-            {canViewRadius && (
-                <NavItem view={View.RADIUS} icon={<Shield size={20} />} label="AAA / Radius Manager" />
-            )}
+            <NavGroup title="Operations">
+                <NavItem view={View.DASHBOARD} icon={<LayoutDashboard size={18} />} label="Dashboard" />
+                <NavItem view={View.TICKETS} icon={<TicketIcon size={18} />} label="Tickets & Issues" />
+                {canViewMaintenance && (
+                    <NavItem view={View.MAINTENANCE} icon={<Calendar size={18} />} label="Maintenance" />
+                )}
+            </NavGroup>
 
-            <NavItem view={View.CUSTOMERS} icon={<Users size={20} />} label="Customers" />
-            
-            {canViewMaintenance && (
-                <NavItem view={View.MAINTENANCE} icon={<Calendar size={20} />} label="Maintenance" />
-            )}
-            {canViewReports && (
-                <NavItem view={View.REPORTS} icon={<FileText size={20} />} label="Reports" />
-            )}
-            <NavItem view={View.KNOWLEDGE_BASE} icon={<Book size={20} />} label="Knowledge Base" />
-            
-            {canViewBilling && (
-                <NavItem view={View.BILLING} icon={<CreditCard size={20} />} label="Billing & Invoices" />
-            )}
-            {canManagePlans && (
-                <NavItem view={View.SERVICE_PLANS} icon={<DollarSign size={20} />} label="Service Plans" />
-            )}
-            {canManageEmployees && (
-                <NavItem view={View.EMPLOYEES} icon={<Briefcase size={20} />} label="Employees / HR" />
-            )}
-            <NavItem view={View.SETTINGS} icon={<SettingsIcon size={20} />} label="Settings" />
+            <NavGroup title="Network & Infrastructure">
+                <NavItem view={View.DEVICES} icon={<Server size={18} />} label="Inventory & Topology" />
+                {canViewRadius && (
+                    <NavItem view={View.RADIUS} icon={<Shield size={18} />} label="AAA / Radius" />
+                )}
+                {canViewSyslog && (
+                    <NavItem view={View.SYSLOG} icon={<Terminal size={18} />} label="Central Syslog" />
+                )}
+            </NavGroup>
+
+            <NavGroup title="Commercial">
+                <NavItem view={View.CUSTOMERS} icon={<Users size={18} />} label="Customers" />
+                {canViewBilling && (
+                    <NavItem view={View.BILLING} icon={<CreditCard size={18} />} label="Billing & Invoices" />
+                )}
+                {canManagePlans && (
+                    <NavItem view={View.SERVICE_PLANS} icon={<DollarSign size={18} />} label="Service Plans" />
+                )}
+            </NavGroup>
+
+            <NavGroup title="Administration">
+                {canViewReports && (
+                    <NavItem view={View.REPORTS} icon={<FileText size={18} />} label="Reports" />
+                )}
+                <NavItem view={View.KNOWLEDGE_BASE} icon={<Book size={18} />} label="Knowledge Base" />
+                {canManageEmployees && (
+                    <NavItem view={View.EMPLOYEES} icon={<Briefcase size={18} />} label="HRIS" />
+                )}
+                <NavItem view={View.SETTINGS} icon={<SettingsIcon size={18} />} label="Settings" />
+            </NavGroup>
+
           </nav>
 
           {/* User Profile / Role Switcher - FIXED BOTTOM */}
@@ -726,6 +749,7 @@ const App: React.FC = () => {
               {currentView === View.REPORTS && 'System Reports & Analytics'}
               {currentView === View.KNOWLEDGE_BASE && 'Technical Knowledge Base'}
               {currentView === View.RADIUS && 'AAA / Radius Server'}
+              {currentView === View.SYSLOG && 'Centralized Log Management'}
               {currentView === View.BILLING && 'Finance & Billing'}
               {currentView === View.SERVICE_PLANS && 'Product & Plans'}
               {(currentView === View.EMPLOYEES || currentView === View.DETAIL_EMPLOYEE) && 'HR Information System'}
@@ -776,7 +800,7 @@ const App: React.FC = () => {
 
         {/* Scrollable Content Area */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
-           <div className="max-w-7xl mx-auto">
+           <div className="max-w-7xl mx-auto h-full">
               {currentView === View.DASHBOARD && (
                 <Dashboard 
                     tickets={tickets} 
@@ -836,6 +860,11 @@ const App: React.FC = () => {
                     userRole={currentUserRole}
                     onKickSession={handleKickSession}
                     onNavigateToCustomer={handleNavigateToCustomer}
+                />
+              )}
+              {currentView === View.SYSLOG && (
+                <SyslogViewer
+                    initialLogs={MOCK_SYSLOGS}
                 />
               )}
               {currentView === View.MAINTENANCE && (
