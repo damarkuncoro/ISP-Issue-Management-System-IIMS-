@@ -1,13 +1,14 @@
 
 import React, { useState } from 'react';
 import { Customer, UserRole, CustomerStatus, ServicePlan, Invoice, InvoiceStatus, Device, DeviceStatus, Ticket, TicketStatus } from '../types';
-import { ArrowLeft, User, MapPin, Phone, Mail, FileText, Server, Shield, CreditCard, Activity, Edit, Download, CheckCircle, Clock, AlertCircle, Ticket as TicketIcon, Router, Plus, UserX, BarChart2, AlertTriangle, ExternalLink, HeartPulse } from 'lucide-react';
+import { ArrowLeft, User, MapPin, Phone, Mail, FileText, Server, Shield, CreditCard, Activity, Edit, Download, CheckCircle, Clock, AlertCircle, Ticket as TicketIcon, Router, Plus, UserX, BarChart2, AlertTriangle, ExternalLink, HeartPulse, Wifi, XCircle } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, RadialBarChart, RadialBar, PolarAngleAxis } from 'recharts';
 import EditCustomerModal from './EditCustomerModal';
 import CreateTicketModal from './CreateTicketModal';
 import AddDeviceModal from './AddDeviceModal';
 import TerminateModal from './TerminateModal';
 import LiveTrafficChart from './LiveTrafficChart';
+import { MOCK_RADIUS_SESSIONS } from '../constants'; // Import mocked sessions
 
 interface CustomerDetailProps {
   customer: Customer;
@@ -90,6 +91,9 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
   const customerDevices = devices.filter(d => d.customer_id === customer.id);
   // Find tickets linked to this customer
   const customerTickets = tickets.filter(t => t.link_id === customer.id);
+
+  // Radius Session (Mock Lookup)
+  const activeSession = MOCK_RADIUS_SESSIONS.find(s => s.customer_id === customer.id);
 
   const customerPlan = servicePlans.find(p => p.id === customer.service_plan_id) || servicePlans.find(p => p.name === customer.package_name);
 
@@ -435,6 +439,46 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                 )}
             </div>
 
+            {/* LIVE SESSION WIDGET */}
+            {canViewTechnical && (
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4 flex items-center gap-2">
+                        <Wifi size={16} className="text-green-500" /> Active Session
+                    </h3>
+                    
+                    {activeSession ? (
+                        <div className="bg-green-50 p-4 rounded-lg border border-green-200 space-y-3">
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs text-slate-500 font-bold">Status</span>
+                                <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase">Online</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs text-slate-500 font-bold">Assigned IP</span>
+                                <span className="font-mono text-xs text-slate-800">{activeSession.ip_address}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs text-slate-500 font-bold">Uptime</span>
+                                <span className="font-mono text-xs text-slate-800">
+                                    {Math.floor(activeSession.uptime_seconds / 3600)}h {Math.floor((activeSession.uptime_seconds % 3600) / 60)}m
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center pt-2 border-t border-green-200">
+                                <span className="text-xs text-slate-500 font-bold">Action</span>
+                                <button className="text-xs text-red-600 hover:text-white hover:bg-red-500 px-2 py-1 rounded border border-red-200 hover:border-red-500 transition flex items-center gap-1">
+                                    <XCircle size={10} /> Kick
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-center text-slate-500">
+                            <XCircle size={24} className="mx-auto mb-2 text-slate-300" />
+                            <p className="text-xs font-medium">No active Radius session.</p>
+                            <p className="text-[10px]">User is offline or not authenticated.</p>
+                        </div>
+                    )}
+                </div>
+            )}
+
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">Current Plan</h3>
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-5 rounded-xl mb-4">
@@ -454,40 +498,6 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                         <>
                             <h4 className="text-xl font-bold text-blue-900">{customer.package_name}</h4>
                             <p className="text-blue-700 text-sm mt-1">Legacy Plan</p>
-                        </>
-                    )}
-                </div>
-            </div>
-
-            {/* Service Health */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">Service Health</h3>
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
-                        <div className="flex items-center gap-2">
-                             <div className={`w-3 h-3 rounded-full ${customer.status === CustomerStatus.ACTIVE ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`}></div>
-                             <span className="text-sm font-medium text-slate-700">Radius Session</span>
-                        </div>
-                        <span className="text-xs font-mono text-slate-500">
-                            {customer.status === CustomerStatus.ACTIVE ? 'Connected' : 'Offline'}
-                        </span>
-                    </div>
-                    {canViewTechnical && customer.status === CustomerStatus.ACTIVE && (
-                        <>
-                             <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
-                                <div className="flex items-center gap-2">
-                                    <Activity size={16} className="text-indigo-500"/>
-                                    <span className="text-sm font-medium text-slate-700">Optical Power</span>
-                                </div>
-                                <span className="text-xs font-mono text-green-600 font-bold bg-green-100 px-2 py-0.5 rounded">-18.4 dBm</span>
-                            </div>
-                             <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
-                                <div className="flex items-center gap-2">
-                                    <Clock size={16} className="text-blue-500"/>
-                                    <span className="text-sm font-medium text-slate-700">Session Time</span>
-                                </div>
-                                <span className="text-xs font-mono text-slate-600">4d 2h 15m</span>
-                            </div>
                         </>
                     )}
                 </div>

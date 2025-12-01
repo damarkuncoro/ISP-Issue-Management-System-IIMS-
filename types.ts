@@ -97,8 +97,8 @@ export enum DeviceType {
   ONU = 'ONU',
   SERVER = 'Server',
   FIREWALL = 'Firewall',
-  ODP = 'ODP',
-  ODC = 'ODC'
+  ODP = 'ODP (Passive)',
+  ODC = 'ODC (Passive)'
 }
 
 export interface Device {
@@ -119,6 +119,9 @@ export interface Device {
   u_position?: number;   // The top U slot number (1-42)
   u_height?: number;     // Height in U (e.g., 1, 2, 4)
   
+  // ODP/ODC Info
+  port_capacity?: number; // Total ports (e.g., 8, 16)
+  
   status: DeviceStatus;
   last_updated: string;
   installed_by?: string;
@@ -126,7 +129,6 @@ export interface Device {
   installation_photo?: string; // Mock URL or Base64
   customer_id?: string; // Relation to Customer
   uplink_device_id?: string; // Relation to Parent Device (Topology) e.g., ONU connects to OLT
-  port_capacity?: number; // Capacity for OLT/ODP
 }
 
 // --- CUSTOMER TYPES ---
@@ -268,4 +270,33 @@ export interface KBArticle {
   last_updated: string;
   tags: string[];
   views: number;
+}
+
+// --- RADIUS / AAA TYPES ---
+
+export interface RadiusSession {
+  id: string; // Session ID (Acct-Session-Id)
+  username: string;
+  customer_id?: string; // Linked customer
+  ip_address: string;
+  mac_address: string;
+  nas_ip: string;
+  start_time: string; // ISO String
+  uptime_seconds: number;
+  download_total_mb: number;
+  upload_total_mb: number;
+  current_download_rate: number; // Mbps
+  current_upload_rate: number; // Mbps
+  protocol: 'PPPoE' | 'Hotspot';
+  status: 'Active' | 'Stale';
+}
+
+export interface RadiusLog {
+  id: string;
+  timestamp: string;
+  username: string;
+  message: string;
+  reply: 'Accept' | 'Reject' | 'Timeout';
+  nas_ip: string;
+  mac_address?: string;
 }

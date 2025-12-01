@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Ticket as TicketIcon, Settings as SettingsIcon, Bell, Search, User, Menu, X, ChevronDown, Server, Users, DollarSign, Briefcase, CreditCard, LogOut, Calendar, FileText, Book } from 'lucide-react';
+import { LayoutDashboard, Ticket as TicketIcon, Settings as SettingsIcon, Bell, Search, User, Menu, X, ChevronDown, Server, Users, DollarSign, Briefcase, CreditCard, LogOut, Calendar, FileText, Book, Shield } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TicketList from './components/TicketList';
 import TicketDetail from './components/TicketDetail';
@@ -21,8 +21,9 @@ import MaintenanceSchedule from './components/MaintenanceSchedule';
 import AIAssistant from './components/AIAssistant'; 
 import Reports from './components/Reports';
 import KnowledgeBase from './components/KnowledgeBase';
-import { MOCK_TICKETS, MOCK_DEVICES, MOCK_CUSTOMERS, MOCK_SERVICE_PLANS, MOCK_EMPLOYEES, MOCK_INVOICES, MOCK_MAINTENANCE, MOCK_KB } from './constants';
-import { Ticket, TicketStatus, ActivityLogEntry, Severity, UserRole, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, Invoice, InvoiceStatus, Maintenance, MaintenanceStatus, KBArticle, TicketType, EmployeeAuditLogEntry } from './types';
+import RadiusManagement from './components/RadiusManagement';
+import { MOCK_TICKETS, MOCK_DEVICES, MOCK_CUSTOMERS, MOCK_SERVICE_PLANS, MOCK_EMPLOYEES, MOCK_INVOICES, MOCK_MAINTENANCE, MOCK_KB, MOCK_RADIUS_SESSIONS, MOCK_RADIUS_LOGS } from './constants';
+import { Ticket, TicketStatus, ActivityLogEntry, Severity, UserRole, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, Invoice, InvoiceStatus, Maintenance, MaintenanceStatus, KBArticle, TicketType, EmployeeAuditLogEntry, RadiusSession, RadiusLog } from './types';
 import { generateTicketSummary } from './services/geminiService';
 
 enum View {
@@ -36,6 +37,7 @@ enum View {
   MAINTENANCE = 'maintenance',
   REPORTS = 'reports',
   KNOWLEDGE_BASE = 'knowledge_base',
+  RADIUS = 'radius',
   DETAIL_TICKET = 'detail_ticket',
   DETAIL_CUSTOMER = 'detail_customer',
   DETAIL_EMPLOYEE = 'detail_employee',
@@ -67,6 +69,8 @@ const App: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>(MOCK_INVOICES); 
   const [maintenanceList, setMaintenanceList] = useState<Maintenance[]>(MOCK_MAINTENANCE);
   const [kbArticles, setKbArticles] = useState<KBArticle[]>(MOCK_KB);
+  const [radiusSessions, setRadiusSessions] = useState<RadiusSession[]>(MOCK_RADIUS_SESSIONS);
+  const [radiusLogs, setRadiusLogs] = useState<RadiusLog[]>(MOCK_RADIUS_LOGS);
   
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -537,6 +541,15 @@ const App: React.FC = () => {
       setCurrentView(View.MAINTENANCE);
   };
 
+  // --- RADIUS HANDLERS ---
+  const handleKickSession = (sessionId: string) => {
+      const session = radiusSessions.find(s => s.id === sessionId);
+      if (session) {
+          setRadiusSessions(prev => prev.filter(s => s.id !== sessionId));
+          showNotification('Session Terminated', `User ${session.username} has been disconnected (CoA Request Sent).`, 'warning');
+      }
+  };
+
 
   // --- SETTINGS HANDLER ---
   const handleSaveSettings = (section: string, data: any) => {
@@ -584,6 +597,7 @@ const App: React.FC = () => {
   const canViewBilling = currentUserRole === UserRole.FINANCE || currentUserRole === UserRole.MANAGER || currentUserRole === UserRole.SALES;
   const canViewMaintenance = currentUserRole === UserRole.NOC || currentUserRole === UserRole.MANAGER || currentUserRole === UserRole.NETWORK || currentUserRole === UserRole.CS;
   const canViewReports = currentUserRole === UserRole.MANAGER || currentUserRole === UserRole.FINANCE || currentUserRole === UserRole.NOC;
+  const canViewRadius = currentUserRole === UserRole.NOC || currentUserRole === UserRole.NETWORK || currentUserRole === UserRole.MANAGER;
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -630,6 +644,11 @@ const App: React.FC = () => {
             <NavItem view={View.DASHBOARD} icon={<LayoutDashboard size={20} />} label="Dashboard" />
             <NavItem view={View.TICKETS} icon={<TicketIcon size={20} />} label="Issue Tickets" />
             <NavItem view={View.DEVICES} icon={<Server size={20} />} label="Inventory & Topology" />
+            
+            {canViewRadius && (
+                <NavItem view={View.RADIUS} icon={<Shield size={20} />} label="AAA / Radius Manager" />
+            )}
+
             <NavItem view={View.CUSTOMERS} icon={<Users size={20} />} label="Customers" />
             
             {canViewMaintenance && (
@@ -706,6 +725,7 @@ const App: React.FC = () => {
               {currentView === View.MAINTENANCE && 'Planned Maintenance'}
               {currentView === View.REPORTS && 'System Reports & Analytics'}
               {currentView === View.KNOWLEDGE_BASE && 'Technical Knowledge Base'}
+              {currentView === View.RADIUS && 'AAA / Radius Server'}
               {currentView === View.BILLING && 'Finance & Billing'}
               {currentView === View.SERVICE_PLANS && 'Product & Plans'}
               {(currentView === View.EMPLOYEES || currentView === View.DETAIL_EMPLOYEE) && 'HR Information System'}
@@ -806,6 +826,16 @@ const App: React.FC = () => {
                    onVerifyCustomer={handleVerifyCustomer}
                    onProvisionCustomer={handleProvisionCustomer}
                    onSelectCustomer={handleCustomerSelect}
+                />
+              )}
+              {currentView === View.RADIUS && (
+                <RadiusManagement
+                    sessions={radiusSessions}
+                    logs={radiusLogs}
+                    customers={customers}
+                    userRole={currentUserRole}
+                    onKickSession={handleKickSession}
+                    onNavigateToCustomer={handleNavigateToCustomer}
                 />
               )}
               {currentView === View.MAINTENANCE && (
