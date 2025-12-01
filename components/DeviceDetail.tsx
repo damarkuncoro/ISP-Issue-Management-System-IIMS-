@@ -143,6 +143,20 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
   };
   const ponHistory = isOLT ? generatePonHistory() : [];
 
+  // Calculate Aggregates for OLT Summary
+  const currentTotalThroughput = isOLT && ponHistory.length > 0 ? (() => {
+      const last = ponHistory[ponHistory.length - 1];
+      let sum = 0;
+      Object.keys(last).forEach(k => {
+          if (k.startsWith('PON')) sum += (last as any)[k];
+      });
+      return (sum / 1000).toFixed(1); // Gbps
+  })() : "0.0";
+
+  const totalClients = ponPorts.reduce((acc, p) => acc + p.connectedCount, 0);
+  const totalSlots = ponPorts.reduce((acc, p) => acc + p.capacity, 0);
+  const activePortsCount = ponPorts.filter(p => p.connectedCount > 0).length;
+
   // --- PING MODAL COMPONENT ---
   const PingModal = () => {
       const [pingLogs, setPingLogs] = useState<string[]>([]);
@@ -450,6 +464,51 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
       {activeTab === 'pon_ports' && isOLT && (
           <div className="animate-in fade-in space-y-6">
               
+              {/* OLT CAPACITY SUMMARY */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                      <p className="text-xs font-bold text-slate-500 uppercase">Total Throughput</p>
+                      <div className="flex items-end gap-2 mt-1">
+                          <span className="text-2xl font-bold text-blue-600">{currentTotalThroughput}</span>
+                          <span className="text-sm font-medium text-slate-600 mb-1">Gbps</span>
+                      </div>
+                      <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
+                          <div className="h-full bg-blue-500" style={{ width: `${Math.min(100, (Number(currentTotalThroughput)/10)*100)}%` }}></div>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1">Capacity: 10 Gbps (Uplink)</p>
+                  </div>
+                  
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                      <p className="text-xs font-bold text-slate-500 uppercase">Total Clients (ONUs)</p>
+                      <div className="flex items-end gap-2 mt-1">
+                          <span className="text-2xl font-bold text-green-600">{totalClients}</span>
+                          <span className="text-sm font-medium text-slate-600 mb-1">Active</span>
+                      </div>
+                      <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
+                          <div className="h-full bg-green-500" style={{ width: `${Math.min(100, (totalClients/totalSlots)*100)}%` }}></div>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1">Total Capacity: {totalSlots} Slots</p>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                      <p className="text-xs font-bold text-slate-500 uppercase">Active Ports</p>
+                      <div className="flex items-end gap-2 mt-1">
+                          <span className="text-2xl font-bold text-indigo-600">{activePortsCount}</span>
+                          <span className="text-sm font-medium text-slate-600 mb-1">/ {ponPorts.length}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-3">{ponPorts.length - activePortsCount} Ports Inactive/Disabled</p>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                      <p className="text-xs font-bold text-slate-500 uppercase">Optical Health</p>
+                      <div className="flex items-end gap-2 mt-1">
+                          <span className="text-2xl font-bold text-slate-800">98%</span>
+                          <span className="text-sm font-medium text-green-600 mb-1">Optimal</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-3">Avg Rx: -19.4 dBm</p>
+                  </div>
+              </div>
+
               {/* UTILIZATION CHART */}
               <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                   <h4 className="font-bold text-slate-700 mb-6 flex items-center gap-2">

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Device, DeviceStatus, UserRole, Customer, Ticket } from '../types';
-import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User, Network, Eye, List, GitGraph, Upload, Grid, Map, Box } from 'lucide-react';
+import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User, Network, Eye, List, GitGraph, Upload, Grid, Map, Box, Radar } from 'lucide-react';
 import AddDeviceModal from './AddDeviceModal';
 import ImportDeviceModal from './ImportDeviceModal';
 import NetworkTopologyTree from './NetworkTopologyTree';
@@ -29,16 +29,21 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
   const [viewMode, setViewMode] = useState<'LIST' | 'TREE' | 'IPAM' | 'MAP' | 'RACK'>('LIST');
   
-  // Real-world subnets for PT. Cakramedia Indocyber (AS24200)
+  // IPAM specific states
+  const [selectedIpForAdd, setSelectedIpForAdd] = useState<string | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [rogueIps, setRogueIps] = useState<string[]>([]); // List of IPs that respond but aren't in DB
+
+  // Real-world subnets for PT. Cakramedia Indocyber (AS24200) with DHCP ranges
   const availableSubnets = [
-    { subnet: "202.133.0", description: "Static Assignment (Corp)" },
-    { subnet: "202.133.1", description: "Static Assignment (Corp)" },
-    { subnet: "202.133.2", description: "Static Assignment (Corp)" },
-    { subnet: "202.133.3", description: "Cakramedia Indocyber, PT." },
-    { subnet: "202.133.4", description: "PT. Cakramedia Indocyber" },
-    { subnet: "202.133.5", description: "Cybercafe & Office (Laguna)" },
-    { subnet: "202.133.6", description: "Static Assignment (Corp)" },
-    { subnet: "202.133.7", description: "Static Assignment (Corp)" }
+    { subnet: "202.133.0", description: "Static Assignment (Corp)", dhcpStart: 0, dhcpEnd: 0 },
+    { subnet: "202.133.1", description: "Static Assignment (Corp)", dhcpStart: 0, dhcpEnd: 0 },
+    { subnet: "202.133.2", description: "Static Assignment (Corp)", dhcpStart: 0, dhcpEnd: 0 },
+    { subnet: "202.133.3", description: "Cakramedia Indocyber, PT.", dhcpStart: 100, dhcpEnd: 250 }, // DHCP for Office/Guests
+    { subnet: "202.133.4", description: "PT. Cakramedia Indocyber", dhcpStart: 0, dhcpEnd: 0 }, // Infra
+    { subnet: "202.133.5", description: "Cybercafe & Office (Laguna)", dhcpStart: 50, dhcpEnd: 200 },
+    { subnet: "202.133.6", description: "Static Assignment (Corp)", dhcpStart: 0, dhcpEnd: 0 },
+    { subnet: "202.133.7", description: "Static Assignment (Corp)", dhcpStart: 0, dhcpEnd: 0 }
   ];
 
   const [selectedSubnet, setSelectedSubnet] = useState(availableSubnets[4].subnet); // Default to .4 (Infra)
@@ -73,12 +78,14 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
 
   const handleOpenAdd = () => {
     setEditingDevice(null);
+    setSelectedIpForAdd(null);
     setIsModalOpen(true);
   };
 
   const handleOpenEdit = (e: React.MouseEvent, device: Device) => {
     e.stopPropagation();
     setEditingDevice(device);
+    setSelectedIpForAdd(null);
     setIsModalOpen(true);
   };
 
@@ -104,6 +111,38 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
       newDevices.forEach(d => onAddDevice(d));
   };
 
+  // --- IPAM SCAN LOGIC ---
+  const handleScanNetwork = () => {
+      setIsScanning(true);
+      setRogueIps([]);
+      
+      // Simulate scan process
+      setTimeout(() => {
+          // Generate 3 random IPs in the current subnet that are NOT in devices list
+          const rogues = [];
+          for(let i=0; i<3; i++) {
+              const octet = Math.floor(Math.random() * 250) + 2;
+              const ip = `${selectedSubnet}.${octet}`;
+              
+              // Only add if not already assigned
+              const exists = devices.some(d => d.ip_address === ip) || customers.some(c => c.ip_address === ip);
+              if (!exists) {
+                  rogues.push(ip);
+              }
+          }
+          setRogueIps(rogues);
+          setIsScanning(false);
+      }, 2000);
+  };
+
+  // --- IP ASSIGNMENT LOGIC ---
+  const handleAssignIp = (ip: string) => {
+      if (!canEdit) return;
+      setSelectedIpForAdd(ip);
+      setEditingDevice(null);
+      setIsModalOpen(true);
+  };
+
   const getCustomerName = (custId?: string) => {
       if (!custId) return null;
       const c = customers.find(x => x.id === custId);
@@ -116,6 +155,8 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
       return d ? d.name : uplinkId;
   };
 
+  const currentSubnetConfig = availableSubnets.find(s => s.subnet === selectedSubnet);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <AddDeviceModal 
@@ -127,6 +168,7 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
         device={editingDevice}
         customers={customers}
         allDevices={devices}
+        preFilledIp={selectedIpForAdd || undefined}
       />
 
       <ImportDeviceModal 
@@ -212,24 +254,45 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
           </div>
       ) : viewMode === 'IPAM' ? (
           <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <div className="flex items-center gap-4 mb-6 border-b border-slate-100 pb-4">
-                  <h4 className="font-bold text-slate-700">Select Subnet:</h4>
-                  <select 
-                    className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
-                    value={selectedSubnet}
-                    onChange={(e) => setSelectedSubnet(e.target.value)}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-4">
+                      <h4 className="font-bold text-slate-700">Select Subnet:</h4>
+                      <select 
+                        className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                        value={selectedSubnet}
+                        onChange={(e) => { setSelectedSubnet(e.target.value); setRogueIps([]); }}
+                      >
+                          {availableSubnets.map(s => (
+                              <option key={s.subnet} value={s.subnet}>{s.subnet}.0/24 - {s.description}</option>
+                          ))}
+                      </select>
+                  </div>
+                  <button 
+                    onClick={handleScanNetwork}
+                    disabled={isScanning}
+                    className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
                   >
-                      {availableSubnets.map(s => (
-                          <option key={s.subnet} value={s.subnet}>{s.subnet}.0/24 - {s.description}</option>
-                      ))}
-                  </select>
+                      {isScanning ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div>
+                            Scanning...
+                          </>
+                      ) : (
+                          <>
+                            <Radar size={16} /> Scan Network
+                          </>
+                      )}
+                  </button>
               </div>
               <IPAMGrid 
                   subnet={selectedSubnet}
                   devices={devices}
                   customers={customers}
+                  dhcpRange={currentSubnetConfig ? { start: currentSubnetConfig.dhcpStart, end: currentSubnetConfig.dhcpEnd } : undefined}
+                  rogueIps={rogueIps}
                   onNavigateToDevice={(id) => { if(onSelectDevice) { const d = devices.find(x => x.id === id); if(d) onSelectDevice(d); } }}
                   onNavigateToCustomer={(id) => { if(onNavigateToCustomer) onNavigateToCustomer(id); }}
+                  onAssignIp={handleAssignIp}
               />
           </div>
       ) : viewMode === 'RACK' ? (

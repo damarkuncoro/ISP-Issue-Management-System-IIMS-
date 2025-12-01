@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { DeviceType, DeviceStatus, UserRole, Device, Customer } from '../types';
 import { X, Save, Server, Shield, Camera, FileCheck, AlertTriangle, CheckCircle, Zap, Info, User, Network } from 'lucide-react';
@@ -12,6 +13,7 @@ interface AddDeviceModalProps {
   customers?: Customer[]; // List of customers for selection
   allDevices?: Device[]; // List of all devices for Uplink selection
   preSelectedCustomerId?: string; // Auto select if adding from Customer Detail
+  preFilledIp?: string; // Added: Auto fill IP from IPAM
 }
 
 // --- SMART VALIDATION DATABASE ---
@@ -29,7 +31,7 @@ const DEVICE_CATALOG: Record<string, { brand: string; wifi: 'Single' | 'Dual' | 
   'HUAWEI HG8240': { brand: 'Huawei', wifi: 'Single', max_speed: 1000, type: 'Bridge' },
 };
 
-const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubmit, onUpdate, userRole, device, customers = [], allDevices = [], preSelectedCustomerId }) => {
+const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubmit, onUpdate, userRole, device, customers = [], allDevices = [], preSelectedCustomerId, preFilledIp }) => {
   const [formData, setFormData] = useState({
     name: '',
     type: DeviceType.ONU, // Default to ONU as it's the most common install
@@ -75,7 +77,7 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubm
             name: '',
             type: DeviceType.ONU,
             model: '',
-            ip_address: '',
+            ip_address: preFilledIp || '', // Use preFilledIp if available
             mac_address: '',
             serial_number: '',
             location: '',
@@ -98,7 +100,7 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubm
         
         setValidationMsg(null);
     }
-  }, [device, isOpen, preSelectedCustomerId, customers]);
+  }, [device, isOpen, preSelectedCustomerId, customers, preFilledIp]);
 
   // --- SMART VALIDATION LOGIC ---
   useEffect(() => {
