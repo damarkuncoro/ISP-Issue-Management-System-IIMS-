@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Device, DeviceStatus, Ticket, UserRole, Customer, DeviceType } from '../types';
 import { ArrowLeft, Server, MapPin, Shield, Activity, Network, Users, Ticket as TicketIcon, Edit, Clock, Settings, CheckCircle, Boxes, Terminal, Box, ChevronRight, X, Play, Zap } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import LiveTrafficChart from './LiveTrafficChart';
 import AddDeviceModal from './AddDeviceModal';
 import WebTerminal from './WebTerminal';
@@ -123,6 +124,24 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
   
   // Memoize data to avoid refresh on render in real app, simplified here
   const opticalData = hasOptical ? generateOpticalData() : [];
+
+  // Generate Mock PON History Data for OLT
+  const generatePonHistory = () => {
+      const history = [];
+      const now = new Date();
+      for (let i = 24; i >= 0; i--) {
+          const t = new Date(now.getTime() - i * 3600000);
+          history.push({
+              time: t.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+              'PON-1': Math.floor(Math.random() * 800) + 200,
+              'PON-2': Math.floor(Math.random() * 600) + 100,
+              'PON-3': Math.floor(Math.random() * 400) + 50,
+              'PON-4': Math.floor(Math.random() * 1200) + 400,
+          });
+      }
+      return history;
+  };
+  const ponHistory = isOLT ? generatePonHistory() : [];
 
   // --- PING MODAL COMPONENT ---
   const PingModal = () => {
@@ -430,12 +449,35 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
       {/* PON PORTS TAB (OLT ONLY) */}
       {activeTab === 'pon_ports' && isOLT && (
           <div className="animate-in fade-in space-y-6">
+              
+              {/* UTILIZATION CHART */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <h4 className="font-bold text-slate-700 mb-6 flex items-center gap-2">
+                      <Activity size={18} className="text-blue-500" /> PON Port Utilization (Throughput History)
+                  </h4>
+                  <div className="h-72 w-full min-w-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={ponHistory}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                              <XAxis dataKey="time" tick={{fontSize: 10, fill: '#64748b'}} interval={3} />
+                              <YAxis label={{ value: 'Mbps', angle: -90, position: 'insideLeft', fontSize: 10, fill: '#94a3b8' }} tick={{fontSize: 10, fill: '#64748b'}} />
+                              <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }} />
+                              <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                              <Line type="monotone" dataKey="PON-1" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                              <Line type="monotone" dataKey="PON-2" stroke="#10b981" strokeWidth={2} dot={false} />
+                              <Line type="monotone" dataKey="PON-3" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                              <Line type="monotone" dataKey="PON-4" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                          </LineChart>
+                      </ResponsiveContainer>
+                  </div>
+              </div>
+
+              {/* PORTS GRID */}
               <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                   <h4 className="font-bold text-slate-700 mb-6 flex items-center gap-2">
                       <Boxes size={18} className="text-orange-500" /> GPON Line Card Status
                   </h4>
                   
-                  {/* Ports Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {ponPorts.map(port => {
                           const percent = (port.connectedCount / port.capacity) * 100;
