@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Device, DeviceStatus, UserRole, Customer, Ticket, RadiusSession } from '../types';
-import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User, Network, Eye, List, GitGraph, Upload, Grid, Map, Box, Radar, ChevronRight } from 'lucide-react';
+import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User, Network, Eye, List, GitGraph, Upload, Grid, Map, Box, Radar, ChevronRight, PieChart } from 'lucide-react';
 import AddDeviceModal from './AddDeviceModal';
 import ImportDeviceModal from './ImportDeviceModal';
 import NetworkTopologyTree from './NetworkTopologyTree';
@@ -20,9 +20,10 @@ interface DeviceInventoryProps {
   preSetFilter?: string; 
   tickets?: Ticket[]; 
   radiusSessions?: RadiusSession[]; // Added for IPAM
+  onKickSession?: (sessionId: string) => void;
 }
 
-const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, customers = [], onAddDevice, onUpdateDevice, onValidateDevice, onSelectDevice, onNavigateToCustomer, preSetFilter, tickets = [], radiusSessions = [] }) => {
+const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, customers = [], onAddDevice, onUpdateDevice, onValidateDevice, onSelectDevice, onNavigateToCustomer, preSetFilter, tickets = [], radiusSessions = [], onKickSession }) => {
   const [filterText, setFilterText] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -33,6 +34,7 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
   const [selectedIpForAdd, setSelectedIpForAdd] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [rogueIps, setRogueIps] = useState<string[]>([]); // List of IPs that respond but aren't in DB
+  const [subnetFilter, setSubnetFilter] = useState(''); // Filter for subnet list sidebar
 
   // Real-world subnets for PT. Cakramedia Indocyber (AS24200) with DHCP ranges
   const availableSubnets = [
@@ -182,10 +184,18 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
           }
       });
 
-      // Reserved .0, .1, .255 are implicit in logic usually, but let's count them as overhead or ignore for "usage"
-      // IPAMGrid considers them "RESERVED". Let's just return count.
       return usedIPs.size;
   };
+
+  // Filter Subnets for sidebar
+  const filteredSubnets = availableSubnets.filter(s => 
+      s.subnet.includes(subnetFilter) || s.description.toLowerCase().includes(subnetFilter.toLowerCase())
+  );
+
+  // Global Stats
+  const totalIPs = availableSubnets.length * 256;
+  const totalUsed = availableSubnets.reduce((acc, sub) => acc + getSubnetUsage(sub.subnet), 0);
+  const globalUtilization = Math.round((totalUsed / totalIPs) * 100);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -286,9 +296,35 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
               {/* Sidebar: Subnet List */}
               <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col h-[650px]">
-                  <h4 className="font-bold text-slate-700 mb-4 px-2">Subnets</h4>
-                  <div className="overflow-y-auto flex-1 space-y-2 pr-2">
-                      {availableSubnets.map(s => {
+                  <div className="mb-4">
+                      <h4 className="font-bold text-slate-700 mb-2 flex items-center gap-2">
+                          <Network size={16} className="text-blue-500" /> Network Segments
+                      </h4>
+                      <div className="relative">
+                          <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                          <input 
+                              type="text" 
+                              placeholder="Find subnet..." 
+                              className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                              value={subnetFilter}
+                              onChange={e => setSubnetFilter(e.target.value)}
+                          />
+                      </div>
+                  </div>
+                  
+                  {/* Global Stats Card */}
+                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 mb-4 flex items-center justify-between shadow-sm">
+                      <div>
+                          <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wide">Global Usage</p>
+                          <p className="text-lg font-bold text-slate-800">{globalUtilization}% <span className="text-xs font-normal text-slate-400">Allocated</span></p>
+                      </div>
+                      <div className="h-8 w-8 text-blue-500">
+                           <PieChart size={32} strokeWidth={1.5} />
+                      </div>
+                  </div>
+
+                  <div className="overflow-y-auto flex-1 space-y-2 pr-1">
+                      {filteredSubnets.map(s => {
                           const usageCount = getSubnetUsage(s.subnet);
                           const usagePercent = Math.round((usageCount / 256) * 100);
                           const isSelected = selectedSubnet === s.subnet;
@@ -297,10 +333,10 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
                               <div 
                                 key={s.subnet}
                                 onClick={() => { setSelectedSubnet(s.subnet); setRogueIps([]); }}
-                                className={`p-3 rounded-lg border cursor-pointer transition ${
+                                className={`p-3 rounded-lg border cursor-pointer transition relative overflow-hidden group ${
                                     isSelected 
-                                    ? 'bg-blue-50 border-blue-300 shadow-sm' 
-                                    : 'bg-white border-slate-100 hover:bg-slate-50 hover:border-slate-200'
+                                    ? 'bg-blue-50 border-blue-400 shadow-md ring-1 ring-blue-100' 
+                                    : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-blue-300'
                                 }`}
                               >
                                   <div className="flex justify-between items-center mb-1">
@@ -315,15 +351,18 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
                                   <div className="flex items-center gap-2">
                                       <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                           <div 
-                                            className={`h-full rounded-full ${usagePercent > 80 ? 'bg-red-500' : 'bg-green-500'}`} 
+                                            className={`h-full rounded-full transition-all duration-500 ${usagePercent > 80 ? 'bg-red-500' : 'bg-green-500'}`} 
                                             style={{width: `${usagePercent}%`}}
                                           ></div>
                                       </div>
-                                      <span className="text-[9px] font-bold text-slate-400">{usagePercent}%</span>
+                                      <span className={`text-[9px] font-bold ${usagePercent > 80 ? 'text-red-500' : 'text-slate-400'}`}>{usagePercent}%</span>
                                   </div>
                               </div>
                           );
                       })}
+                      {filteredSubnets.length === 0 && (
+                          <div className="text-center py-4 text-xs text-slate-400 italic">No subnets match filter.</div>
+                      )}
                   </div>
               </div>
 
@@ -334,16 +373,20 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
                       <button 
                         onClick={handleScanNetwork}
                         disabled={isScanning}
-                        className="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition disabled:opacity-50 ${
+                            isScanning 
+                            ? 'bg-slate-100 text-slate-500 cursor-wait' 
+                            : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-100'
+                        }`}
                       >
                           {isScanning ? (
                               <>
-                                <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                                Scanning...
+                                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
+                                Scanning Subnet...
                               </>
                           ) : (
                               <>
-                                <Radar size={16} /> Scan Rogue IPs
+                                <Radar size={16} /> Scan for Rogues
                               </>
                           )}
                       </button>
@@ -360,6 +403,7 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
                           onNavigateToDevice={(id) => { if(onSelectDevice) { const d = devices.find(x => x.id === id); if(d) onSelectDevice(d); } }}
                           onNavigateToCustomer={(id) => { if(onNavigateToCustomer) onNavigateToCustomer(id); }}
                           onAssignIp={handleAssignIp}
+                          onKickSession={onKickSession}
                       />
                   </div>
               </div>

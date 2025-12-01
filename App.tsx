@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Ticket, TicketStatus, ActivityLogEntry, Severity, UserRole, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, Invoice, InvoiceStatus, Maintenance, MaintenanceStatus, KBArticle, TicketType, EmployeeAuditLogEntry, RadiusSession, RadiusLog, SyslogMessage, EmployeeStatus } from './types';
 import { MOCK_TICKETS, MOCK_DEVICES, MOCK_CUSTOMERS, MOCK_EMPLOYEES, MOCK_INVOICES, MOCK_MAINTENANCE, MOCK_KB, MOCK_SERVICE_PLANS, MOCK_RADIUS_SESSIONS, MOCK_RADIUS_LOGS, MOCK_SYSLOGS } from './constants';
@@ -521,6 +520,7 @@ const App: React.FC = () => {
                     tickets={tickets}
                     radiusSessions={radiusSessions} // Pass active sessions for IPAM
                     onNavigateToCustomer={navigateToCustomer}
+                    onKickSession={handleKickSession}
                 />
               )}
 
@@ -611,6 +611,16 @@ const App: React.FC = () => {
                       plans={servicePlans} 
                       userRole={currentUserRole} 
                       onAddPlan={handleAddPlan}
+                  />
+              )}
+
+              {currentView === View.EMPLOYEES && (
+                  <EmployeeManagement 
+                      employees={employees}
+                      userRole={currentUserRole}
+                      onAddEmployee={handleAddEmployee}
+                      onUpdateEmployee={handleUpdateEmployee}
+                      onSelectEmployee={navigateToEmployee}
                   />
               )}
 

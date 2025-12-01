@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { Device, Customer, RadiusSession } from '../types';
-import { User, Server, Shield, Info, Lock, Plus, AlertTriangle, Wifi, Table, Grid } from 'lucide-react';
+import { User, Server, Shield, Info, Lock, Plus, AlertTriangle, Wifi, Table, Grid, XCircle, LogOut, Filter } from 'lucide-react';
 
 interface IPAMGridProps {
   subnet: string; // e.g. "192.168.1"
@@ -13,11 +12,13 @@ interface IPAMGridProps {
   onNavigateToDevice: (deviceId: string) => void;
   onNavigateToCustomer: (customerId: string) => void;
   onAssignIp?: (ip: string) => void;
+  onKickSession?: (sessionId: string) => void; // New prop for Radius integration
 }
 
-const IPAMGrid: React.FC<IPAMGridProps> = ({ subnet, devices, customers, dhcpRange, rogueIps = [], radiusSessions = [], onNavigateToDevice, onNavigateToCustomer, onAssignIp }) => {
+const IPAMGrid: React.FC<IPAMGridProps> = ({ subnet, devices, customers, dhcpRange, rogueIps = [], radiusSessions = [], onNavigateToDevice, onNavigateToCustomer, onAssignIp, onKickSession }) => {
   const [hoveredIP, setHoveredIP] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'GRID' | 'TABLE'>('GRID');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   // Generate 256 IPs
   const ips = Array.from({ length: 256 }, (_, i) => i);
@@ -57,6 +58,18 @@ const IPAMGrid: React.FC<IPAMGridProps> = ({ subnet, devices, customers, dhcpRan
       const info = getIPInfo(i);
       return info.status === 'ASSIGNED' || info.status === 'RESERVED' || info.status === 'LEASED';
   }).length;
+  
+  // Detailed Stats
+  const usedStatic = ips.filter(i => {
+      const info = getIPInfo(i);
+      return info.status === 'ASSIGNED' || info.status === 'RESERVED';
+  }).length;
+  
+  const usedDynamic = ips.filter(i => {
+      const info = getIPInfo(i);
+      return info.status === 'LEASED';
+  }).length;
+
   const utilization = Math.round((used / total) * 100);
 
   const getStatusBadge = (status: string) => {
@@ -102,13 +115,17 @@ const IPAMGrid: React.FC<IPAMGridProps> = ({ subnet, devices, customers, dhcpRan
                     <p className="text-xs text-slate-400 uppercase font-bold">Utilization</p>
                     <p className={`font-bold text-lg ${utilization > 80 ? 'text-red-600' : 'text-green-600'}`}>{utilization}%</p>
                 </div>
-                <div className="text-center">
-                    <p className="text-xs text-slate-400 uppercase font-bold">Free</p>
-                    <p className="font-bold text-slate-700 text-lg">{total - used}</p>
+                <div className="text-center hidden xl:block">
+                    <p className="text-xs text-slate-400 uppercase font-bold">Static</p>
+                    <p className="font-bold text-slate-700 text-lg">{usedStatic}</p>
+                </div>
+                <div className="text-center hidden xl:block">
+                    <p className="text-xs text-slate-400 uppercase font-bold">Dynamic</p>
+                    <p className="font-bold text-cyan-600 text-lg">{usedDynamic}</p>
                 </div>
                 <div className="text-center">
-                    <p className="text-xs text-slate-400 uppercase font-bold">Used</p>
-                    <p className="font-bold text-blue-600 text-lg">{used}</p>
+                    <p className="text-xs text-slate-400 uppercase font-bold">Free</p>
+                    <p className="font-bold text-slate-500 text-lg">{total - used}</p>
                 </div>
               </div>
           </div>
@@ -116,31 +133,48 @@ const IPAMGrid: React.FC<IPAMGridProps> = ({ subnet, devices, customers, dhcpRan
 
       {viewMode === 'GRID' ? (
         <>
-            {/* Legend */}
-            <div className="flex flex-wrap gap-4 text-xs border-b border-slate-100 pb-4">
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-slate-100 border border-slate-300 rounded"></div>
-                    <span className="text-slate-600">Static Free</span>
+            {/* Legend & Filter */}
+            <div className="flex flex-col sm:flex-row justify-between items-center border-b border-slate-100 pb-4 gap-4">
+                <div className="flex flex-wrap gap-4 text-xs">
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-slate-100 border border-slate-300 rounded"></div>
+                        <span className="text-slate-600">Static Free</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-white border-2 border-slate-300 border-dashed rounded opacity-50"></div>
+                        <span className="text-slate-600">DHCP Pool</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-purple-100 border border-purple-300 rounded"></div>
+                        <span className="text-slate-600">Infrastructure</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-blue-100 border border-blue-300 rounded"></div>
+                        <span className="text-slate-600">Customer</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-cyan-100 border border-cyan-300 rounded shadow-[0_0_4px_rgba(34,211,238,0.4)]"></div>
+                        <span className="text-slate-600">Active Lease (Radius)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-red-100 border border-red-400 rounded animate-pulse"></div>
+                        <span className="text-slate-600">Rogue / Unknown</span>
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-white border-2 border-slate-300 border-dashed rounded opacity-50"></div>
-                    <span className="text-slate-600">DHCP Pool</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-purple-100 border border-purple-300 rounded"></div>
-                    <span className="text-slate-600">Infrastructure</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-blue-100 border border-blue-300 rounded"></div>
-                    <span className="text-slate-600">Customer</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-cyan-100 border border-cyan-300 rounded shadow-[0_0_4px_rgba(34,211,238,0.4)]"></div>
-                    <span className="text-slate-600">Active Lease (Radius)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-red-100 border border-red-400 rounded animate-pulse"></div>
-                    <span className="text-slate-600">Rogue / Unknown</span>
+                
+                <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1 rounded-lg shadow-sm">
+                    <Filter size={14} className="text-slate-400" />
+                    <select 
+                        className="text-xs border-none bg-transparent font-bold text-slate-600 focus:outline-none"
+                        value={statusFilter}
+                        onChange={e => setStatusFilter(e.target.value)}
+                    >
+                        <option value="ALL">Show All</option>
+                        <option value="AVAILABLE">Free & Available</option>
+                        <option value="ASSIGNED">Assigned (Static)</option>
+                        <option value="LEASED">Dynamic Leases</option>
+                        <option value="ROGUE">Security Alerts</option>
+                    </select>
                 </div>
             </div>
 
@@ -150,6 +184,15 @@ const IPAMGrid: React.FC<IPAMGridProps> = ({ subnet, devices, customers, dhcpRan
                     const info = getIPInfo(octet);
                     const fullIP = `${subnet}.${octet}`;
                     
+                    // Filter Logic for Grid (Dimming)
+                    let isDimmed = false;
+                    if (statusFilter !== 'ALL') {
+                        if (statusFilter === 'AVAILABLE' && info.status !== 'AVAILABLE') isDimmed = true;
+                        if (statusFilter === 'ASSIGNED' && info.status !== 'ASSIGNED' && info.status !== 'RESERVED') isDimmed = true;
+                        if (statusFilter === 'LEASED' && info.status !== 'LEASED') isDimmed = true;
+                        if (statusFilter === 'ROGUE' && info.status !== 'ROGUE') isDimmed = true;
+                    }
+
                     let bgClass = 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-400';
                     if (info.type === 'DHCP') bgClass = 'bg-slate-50 border-2 border-dashed border-slate-300 text-slate-400 opacity-70';
                     if (info.status === 'RESERVED') bgClass = 'bg-slate-800 border-slate-900 text-slate-500';
@@ -161,7 +204,7 @@ const IPAMGrid: React.FC<IPAMGridProps> = ({ subnet, devices, customers, dhcpRan
                     return (
                         <div 
                             key={octet}
-                            className={`relative aspect-square rounded border flex items-center justify-center text-[10px] font-mono transition-all group ${bgClass}`}
+                            className={`relative aspect-square rounded border flex items-center justify-center text-[10px] font-mono transition-all group ${bgClass} ${isDimmed ? 'opacity-20 grayscale' : 'opacity-100'}`}
                             onMouseEnter={() => setHoveredIP(octet)}
                             onMouseLeave={() => setHoveredIP(null)}
                             onClick={() => {
@@ -177,15 +220,31 @@ const IPAMGrid: React.FC<IPAMGridProps> = ({ subnet, devices, customers, dhcpRan
                             {octet}
                             
                             {/* Action Hint for Free/Rogue IP */}
-                            {(info.status === 'AVAILABLE' || info.status === 'ROGUE') && onAssignIp && (
+                            {(info.status === 'AVAILABLE' || info.status === 'ROGUE') && onAssignIp && !isDimmed && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-indigo-500/80 rounded opacity-0 group-hover:opacity-100 transition">
                                     <Plus size={14} className="text-white" />
                                 </div>
                             )}
 
+                            {/* Action Hint for Active Session - Kick */}
+                            {info.type === 'SESSION' && onKickSession && !isDimmed && (
+                                <div className="absolute top-0 right-0 p-0.5 opacity-0 group-hover:opacity-100 transition z-20">
+                                    <button 
+                                        className="bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600 shadow-sm"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onKickSession((info.data as any).id);
+                                        }}
+                                        title="Kick Session"
+                                    >
+                                        <XCircle size={10} />
+                                    </button>
+                                </div>
+                            )}
+
                             {/* Tooltip */}
                             {hoveredIP === octet && (
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-900 text-white text-xs p-3 rounded-lg shadow-xl z-10 pointer-events-none">
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-900 text-white text-xs p-3 rounded-lg shadow-xl z-30 pointer-events-none">
                                     <div className="font-bold border-b border-slate-700 pb-1 mb-1 text-center">{fullIP}</div>
                                     <div className="space-y-1">
                                         <div className="flex items-center gap-2">
@@ -204,7 +263,7 @@ const IPAMGrid: React.FC<IPAMGridProps> = ({ subnet, devices, customers, dhcpRan
                                             <div className="text-[10px] text-cyan-500 font-mono">Radius Active</div>
                                         )}
                                         {(info.status === 'AVAILABLE' || info.status === 'ROGUE') && (
-                                            <div className="text-[10px] text-green-400 pt-1">Click to Assign</div>
+                                            <div className="text-[10px] text-green-400 pt-1">Click to Register</div>
                                         )}
                                     </div>
                                     {/* Arrow */}
@@ -217,23 +276,48 @@ const IPAMGrid: React.FC<IPAMGridProps> = ({ subnet, devices, customers, dhcpRan
             </div>
         </>
       ) : (
-        <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-            <div className="overflow-x-auto max-h-[600px]">
+        <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
+            
+            <div className="p-4 border-b border-slate-100 flex justify-end">
+                <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1 rounded-lg shadow-sm">
+                    <Filter size={14} className="text-slate-400" />
+                    <select 
+                        className="text-xs border-none bg-transparent font-bold text-slate-600 focus:outline-none"
+                        value={statusFilter}
+                        onChange={e => setStatusFilter(e.target.value)}
+                    >
+                        <option value="ALL">Show All</option>
+                        <option value="AVAILABLE">Free & Available</option>
+                        <option value="ASSIGNED">Assigned (Static)</option>
+                        <option value="LEASED">Dynamic Leases</option>
+                        <option value="ROGUE">Security Alerts</option>
+                    </select>
+                </div>
+            </div>
+
+            <div className="overflow-x-auto max-h-[500px]">
                 <table className="w-full text-sm text-left">
                     <thead className="bg-slate-50 text-slate-600 font-semibold uppercase text-xs sticky top-0 z-10 shadow-sm">
                         <tr>
-                            <th className="px-6 py-3 border-b border-slate-200">IP Address</th>
-                            <th className="px-6 py-3 border-b border-slate-200">Status</th>
-                            <th className="px-6 py-3 border-b border-slate-200">Entity Type</th>
-                            <th className="px-6 py-3 border-b border-slate-200">Assigned To / Details</th>
-                            <th className="px-6 py-3 border-b border-slate-200 text-right">Action</th>
+                            <th className="px-6 py-3 border-b border-slate-200 bg-slate-50">IP Address</th>
+                            <th className="px-6 py-3 border-b border-slate-200 bg-slate-50">Status</th>
+                            <th className="px-6 py-3 border-b border-slate-200 bg-slate-50">Entity Type</th>
+                            <th className="px-6 py-3 border-b border-slate-200 bg-slate-50">Assigned To / Details</th>
+                            <th className="px-6 py-3 border-b border-slate-200 bg-slate-50 text-right">Action</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
                         {ips.map(octet => {
                             const info = getIPInfo(octet);
                             const fullIP = `${subnet}.${octet}`;
-                            const isClickable = info.status === 'ASSIGNED' || info.status === 'LEASED' || info.status === 'AVAILABLE' || info.status === 'ROGUE';
+                            
+                            // Filter Logic for Table (Remove Rows)
+                            if (statusFilter !== 'ALL') {
+                                if (statusFilter === 'AVAILABLE' && info.status !== 'AVAILABLE') return null;
+                                if (statusFilter === 'ASSIGNED' && info.status !== 'ASSIGNED' && info.status !== 'RESERVED') return null;
+                                if (statusFilter === 'LEASED' && info.status !== 'LEASED') return null;
+                                if (statusFilter === 'ROGUE' && info.status !== 'ROGUE') return null;
+                            }
 
                             return (
                                 <tr key={octet} className="hover:bg-slate-50">
@@ -280,13 +364,26 @@ const IPAMGrid: React.FC<IPAMGridProps> = ({ subnet, devices, customers, dhcpRan
                                                 Assign IP
                                             </button>
                                         )}
-                                        {info.type === 'SESSION' && info.data && (info.data as any).customer_id && (
-                                             <button 
-                                                onClick={() => onNavigateToCustomer((info.data as any).customer_id)}
-                                                className="text-xs text-cyan-600 hover:underline font-medium"
-                                            >
-                                                View Session
-                                            </button>
+                                        {info.type === 'SESSION' && info.data && (
+                                            <div className="flex items-center justify-end gap-2">
+                                                {(info.data as any).customer_id && (
+                                                    <button 
+                                                        onClick={() => onNavigateToCustomer((info.data as any).customer_id)}
+                                                        className="text-xs text-cyan-600 hover:underline font-medium"
+                                                    >
+                                                        View Session
+                                                    </button>
+                                                )}
+                                                {onKickSession && (
+                                                    <button 
+                                                        onClick={() => onKickSession((info.data as any).id)}
+                                                        className="text-xs text-red-500 hover:text-white hover:bg-red-500 border border-red-200 hover:border-red-500 px-2 py-0.5 rounded transition flex items-center gap-1"
+                                                        title="Disconnect"
+                                                    >
+                                                        <LogOut size={10} /> Kick
+                                                    </button>
+                                                )}
+                                            </div>
                                         )}
                                     </td>
                                 </tr>
@@ -306,6 +403,7 @@ const IPAMGrid: React.FC<IPAMGridProps> = ({ subnet, devices, customers, dhcpRan
               <p className="opacity-80">
                   Static IPs are assigned manually. Dynamic leases (Cyan) are synced from the Radius server. 
                   Red cells indicate unauthorized (Rogue) devices found by the network scanner.
+                  Click the 'X' on active sessions to force a disconnect (CoA).
               </p>
           </div>
       </div>

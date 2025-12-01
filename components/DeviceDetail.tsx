@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Device, DeviceStatus, Ticket, UserRole, Customer, DeviceType, Invoice, Maintenance } from '../types';
-import { ArrowLeft, Server, MapPin, Shield, Activity, Network, Users, Ticket as TicketIcon, Edit, Clock, Settings, CheckCircle, Boxes, Terminal, Box, ChevronRight, X, Play, Zap } from 'lucide-react';
+import { ArrowLeft, Server, MapPin, Shield, Activity, Network, Users, Ticket as TicketIcon, Edit, Clock, Settings, CheckCircle, Boxes, Terminal, Box, ChevronRight, X, Play, Zap, Power, RotateCcw, AlertTriangle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import LiveTrafficChart from './LiveTrafficChart';
 import AddDeviceModal from './AddDeviceModal';
@@ -71,6 +71,10 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
       setIsTicketModalOpen(false);
   };
 
+  const handlePortAction = (portName: string, action: string) => {
+      alert(`${action} command sent to ${device.name} interface ${portName}.`);
+  };
+
   // Upstream Trace
   const getUpstreamPath = (startDevice: Device): Device[] => {
       const path: Device[] = [];
@@ -103,9 +107,17 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
             return (cust?.olt_port?.includes(portName)) || (child.type === DeviceType.ODP && (i % 2 === 0)); // Mock distribution
         });
         
+        // Simulate states
+        const isAdminUp = i !== 6; // Mock port 6 as shutdown
+        const isOperUp = isAdminUp && connected.length > 0;
+
         ports.push({
             id: i,
             name: portName,
+            adminStatus: isAdminUp ? 'UP' : 'DOWN',
+            operStatus: isOperUp ? 'UP' : 'DOWN',
+            moduleType: 'Class C+',
+            txPower: isAdminUp ? (Math.random() * 2 + 3).toFixed(2) : '0.00', // 3-5 dBm
             connectedCount: connected.length,
             children: connected,
             capacity: 64 // Max per PON
@@ -161,7 +173,7 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
       ? (ponHistory[ponHistory.length - 1]['PON-1'] + ponHistory[ponHistory.length - 1]['PON-2'] + ponHistory[ponHistory.length - 1]['PON-3'] + ponHistory[ponHistory.length - 1]['PON-4']) 
       : 0;
   const totalOnus = ponPorts.reduce((acc, curr) => acc + curr.connectedCount, 0);
-  const activePortsCount = ponPorts.filter(p => p.connectedCount > 0).length;
+  const activePortsCount = ponPorts.filter(p => p.operStatus === 'UP').length;
 
   // --- PING MODAL COMPONENT ---
   const PingModal = () => {
@@ -343,7 +355,7 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
                                <div className="text-center bg-white px-3 relative mt-1">
                                    <span className="inline-block text-[9px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full mb-1">THIS DEVICE</span>
                                    <p className="text-sm font-bold text-slate-900 leading-tight">{device.name}</p>
-                                   <p className="text-[10px] text-slate-500 font-mono mt-0.5">{device.ip_address || 'Passive'}</p>
+                                   <p className="text-xs text-slate-500 font-mono mt-0.5">{device.ip_address || 'Passive'}</p>
                                </div>
                           </div>
 
@@ -605,27 +617,72 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
               {/* PORTS GRID */}
               <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                   <h4 className="font-bold text-slate-700 mb-6 flex items-center gap-2">
-                      <Boxes size={18} className="text-orange-500" /> GPON Line Card Status
+                      <Boxes size={18} className="text-orange-500" /> GPON Line Card Status & Management
                   </h4>
                   
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {ponPorts.map(port => {
                           const percent = (port.connectedCount / port.capacity) * 100;
-                          const color = percent > 90 ? 'bg-red-100 border-red-300' : percent > 50 ? 'bg-yellow-100 border-yellow-300' : 'bg-green-100 border-green-300';
-                          const dotColor = percent > 90 ? 'bg-red-500' : percent > 50 ? 'bg-yellow-500' : 'bg-green-500';
+                          const isDisabled = port.adminStatus === 'DOWN';
+                          const isAlarm = port.operStatus === 'DOWN' && port.adminStatus === 'UP';
+                          
+                          let color = 'bg-white border-slate-200';
+                          if (isDisabled) color = 'bg-slate-50 border-slate-300 opacity-70';
+                          else if (isAlarm) color = 'bg-red-50 border-red-200';
+                          else if (percent > 90) color = 'bg-orange-50 border-orange-200';
+                          else color = 'bg-white border-green-200';
 
                           return (
-                              <div key={port.id} className={`p-4 rounded-xl border ${color} relative group`}>
+                              <div key={port.id} className={`p-4 rounded-xl border ${color} relative group transition-all hover:shadow-md`}>
                                   <div className="flex justify-between items-start mb-2">
-                                      <span className="font-bold text-slate-700">{port.name}</span>
-                                      <span className={`w-3 h-3 rounded-full ${dotColor}`}></span>
+                                      <div>
+                                          <span className="font-bold text-slate-800 block">{port.name}</span>
+                                          <span className="text-[10px] text-slate-500">{port.moduleType}</span>
+                                      </div>
+                                      <div className="flex gap-1">
+                                          {isDisabled ? (
+                                              <span className="px-1.5 py-0.5 bg-slate-200 text-slate-600 text-[9px] font-bold rounded">DISABLED</span>
+                                          ) : (
+                                              <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded ${port.operStatus === 'UP' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                  {port.operStatus}
+                                              </span>
+                                          )}
+                                      </div>
                                   </div>
-                                  <div className="text-xs text-slate-600 mb-2">
-                                      {port.connectedCount} / {port.capacity} Active
+                                  
+                                  {/* Stats */}
+                                  <div className="flex justify-between items-center text-xs mb-2">
+                                      <span className="text-slate-600 font-medium">{port.connectedCount} / {port.capacity} ONUs</span>
+                                      <span className="font-mono text-slate-500 text-[10px]">{port.txPower} dBm</span>
                                   </div>
-                                  <div className="w-full bg-white/50 h-1.5 rounded-full overflow-hidden">
-                                      <div className={`h-full ${dotColor}`} style={{ width: `${percent}%` }}></div>
+                                  
+                                  {/* Utilization Bar */}
+                                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mb-3">
+                                      <div className={`h-full ${isDisabled ? 'bg-slate-400' : percent > 90 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${percent}%` }}></div>
                                   </div>
+
+                                  {/* Actions */}
+                                  {canEdit && (
+                                      <div className="flex gap-2 mt-2 pt-2 border-t border-slate-100 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <button 
+                                            onClick={(e) => { e.stopPropagation(); handlePortAction(port.name, isDisabled ? 'No Shutdown' : 'Shutdown'); }}
+                                            className={`flex-1 py-1 text-[10px] font-bold rounded border flex items-center justify-center gap-1 transition ${
+                                                isDisabled 
+                                                ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
+                                                : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                                            }`}
+                                          >
+                                              <Power size={10} /> {isDisabled ? 'Enable' : 'Disable'}
+                                          </button>
+                                          <button 
+                                            onClick={(e) => { e.stopPropagation(); handlePortAction(port.name, 'Reset'); }}
+                                            className="px-2 py-1 text-[10px] font-bold rounded border bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                                            title="Reset Port"
+                                          >
+                                              <RotateCcw size={10} />
+                                          </button>
+                                      </div>
+                                  )}
                                   
                                   {/* Tooltip List of ONUs */}
                                   {port.children.length > 0 && (
