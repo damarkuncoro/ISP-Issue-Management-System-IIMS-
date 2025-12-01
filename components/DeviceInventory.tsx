@@ -27,7 +27,7 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
-  const [viewMode, setViewMode] = useState<'LIST' | 'TREE' | 'IPAM' | 'MAP' | 'RACK'>('LIST');
+  const [viewMode, setViewMode] = useState<'LIST' | 'TREE' | 'IPAM' | 'MAP' | 'RACK'>('IPAM');
   
   // IPAM specific states
   const [selectedIpForAdd, setSelectedIpForAdd] = useState<string | null>(null);
@@ -387,6 +387,7 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
                       rackId={selectedRack}
                       devices={devices}
                       onSelectDevice={onSelectDevice}
+                      onUpdateDevice={onUpdateDevice}
                   />
               ) : (
                   <div className="text-center py-12 text-slate-400">

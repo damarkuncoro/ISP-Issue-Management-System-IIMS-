@@ -624,16 +624,6 @@ const App: React.FC = () => {
                   />
               )}
 
-              {currentView === View.EMPLOYEES && (
-                  <EmployeeManagement 
-                      employees={employees}
-                      userRole={currentUserRole}
-                      onAddEmployee={handleAddEmployee}
-                      onUpdateEmployee={handleUpdateEmployee}
-                      onSelectEmployee={navigateToEmployee}
-                  />
-              )}
-
               {currentView === View.EMPLOYEE_DETAIL && selectedEmployee && (
                   <EmployeeDetail 
                       employee={selectedEmployee}
