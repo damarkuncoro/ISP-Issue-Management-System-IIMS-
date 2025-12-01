@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, Ticket as TicketIcon, Settings as SettingsIcon, Bell, Search, User, Menu, X, ChevronDown, Server, Users, DollarSign, Briefcase, CreditCard, LogOut, Calendar, FileText, Book, Shield, Terminal } from 'lucide-react';
 import Dashboard from './components/Dashboard';
@@ -874,6 +875,7 @@ const App: React.FC = () => {
                     onAddMaintenance={handleAddMaintenance}
                     onUpdateStatus={handleUpdateMaintenanceStatus}
                     highlightId={maintenanceFilter}
+                    onNavigateToDevice={handleNavigateToDevice}
                 />
               )}
               {currentView === View.REPORTS && (

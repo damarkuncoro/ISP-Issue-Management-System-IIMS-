@@ -1,3 +1,4 @@
+
 export const ticketsData = [
   {
     "id": "ISP-20251128-001",
@@ -171,5 +172,48 @@ export const ticketsData = [
         "user": "System"
       }
     ]
+  },
+  // --- ROBINSON POP TICKETS (Linking to CUST-ROB-001 / DEV-ROB-001) ---
+  {
+    "id": "ISP-20251128-006",
+    "title": "Intermittent Connection - Sumi Florence",
+    "type": "Customer",
+    "location": "Florence 7 No. 70",
+    "coordinates": { "lat": -6.1395, "lng": 106.7930 },
+    "impact_users": 1,
+    "severity": "Minor",
+    "sla_deadline": "2025-11-29T11:00:00",
+    "created_at": "2025-11-28T09:30:00",
+    "link_id": "CUST-ROB-001",
+    "device_id": "DEV-ROB-001",
+    "related_invoice_id": "INV-ROB-001",
+    "status": "Resolved",
+    "description": "Customer reporting packet loss. Checked Radio Metal 5SHPn, alignment optimized.",
+    "assignee": "Field Tech - Budi",
+    "activityLog": [
+        {
+            "id": "log-6-2",
+            "action": "Ticket Resolved",
+            "description": "Re-aligned antenna. Signal -55dBm stable.",
+            "timestamp": "2025-11-28T11:00:00",
+            "user": "Field Tech - Budi"
+        }
+    ]
+  },
+  {
+    "id": "ISP-20251128-007",
+    "title": "Sinarbudi Link Down",
+    "type": "Device",
+    "location": "Apartemen Robinson",
+    "coordinates": { "lat": -6.1392, "lng": 106.7925 },
+    "impact_users": 5,
+    "severity": "Major",
+    "sla_deadline": "2025-11-28T15:00:00",
+    "created_at": "2025-11-28T10:00:00",
+    "link_id": "CUST-ROB-004",
+    "device_id": "DEV-ROB-004",
+    "status": "Open",
+    "description": "Device unreachable via ping. Power outage suspected at site.",
+    "assignee": "NOC Team A"
   }
 ];

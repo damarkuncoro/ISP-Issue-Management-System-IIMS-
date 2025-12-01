@@ -34,9 +34,10 @@ export const radiusSessionsData: RadiusSession[] = [
     protocol: 'PPPoE',
     status: 'Active'
   },
+  // --- ROBINSON SESSIONS ---
   {
-    id: "99881qwe",
-    username: "sumi.florence",
+    id: "rob-ses-001",
+    username: "admin/voodoo162", // Based on provided login data
     customer_id: "CUST-ROB-001",
     ip_address: "202.133.0.162",
     mac_address: "D4:CA:6D:11:22:33",
@@ -45,8 +46,40 @@ export const radiusSessionsData: RadiusSession[] = [
     uptime_seconds: 259200, // 3 days
     download_total_mb: 12000,
     upload_total_mb: 4500,
-    current_download_rate: 8.2,
+    current_download_rate: 14.5,
     current_upload_rate: 2.1,
+    protocol: 'PPPoE',
+    status: 'Active'
+  },
+  {
+    id: "rob-ses-002",
+    username: "admin/cakra123",
+    customer_id: "CUST-ROB-002",
+    ip_address: "202.133.2.41",
+    mac_address: "D4:CA:6D:44:55:66",
+    nas_ip: "202.133.3.2",
+    start_time: "2025-11-27T08:00:00",
+    uptime_seconds: 100000, 
+    download_total_mb: 55000,
+    upload_total_mb: 12000,
+    current_download_rate: 88.2, // High usage corporate
+    current_upload_rate: 45.5,
+    protocol: 'PPPoE',
+    status: 'Active'
+  },
+  {
+    id: "rob-ses-003",
+    username: "admin/cakra123-acosta",
+    customer_id: "CUST-ROB-003",
+    ip_address: "202.133.2.58",
+    mac_address: "D4:CA:6D:77:88:99",
+    nas_ip: "202.133.3.2",
+    start_time: "2025-11-28T09:00:00",
+    uptime_seconds: 18000,
+    download_total_mb: 4500,
+    upload_total_mb: 800,
+    current_download_rate: 10.5,
+    current_upload_rate: 5.0,
     protocol: 'PPPoE',
     status: 'Active'
   }
@@ -97,5 +130,15 @@ export const radiusLogsData: RadiusLog[] = [
     reply: "Accept",
     nas_ip: "202.133.3.2",
     mac_address: "ZTEGC0FFEE12"
+  },
+  // Robinson Logs
+  {
+    id: "log-r-006",
+    timestamp: "2025-11-28T09:30:00",
+    username: "admin/voodoo162",
+    message: "Login OK (Reconnected)",
+    reply: "Accept",
+    nas_ip: "202.133.3.2",
+    mac_address: "D4:CA:6D:11:22:33"
   }
 ];

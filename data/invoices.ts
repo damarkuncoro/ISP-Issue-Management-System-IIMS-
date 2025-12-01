@@ -1,3 +1,4 @@
+
 export const invoicesData = [
   {
     "id": "INV-202511-001",
@@ -60,6 +61,30 @@ export const invoicesData = [
     "items": [
       { "description": "SME 100 Mbps (Nov 2025)", "amount": 750000 },
       { "description": "Tax (10%)", "amount": 75000 }
+    ]
+  },
+  // --- ROBINSON POP INVOICES ---
+  {
+    "id": "INV-ROB-001",
+    "customer_id": "CUST-ROB-001",
+    "amount": 2000000,
+    "issue_date": "2025-11-01",
+    "due_date": "2025-11-15",
+    "status": "Paid",
+    "payment_date": "2025-11-03",
+    "items": [
+      { "description": "Corporate 15 Mbps (Nov 2025)", "amount": 2000000 }
+    ]
+  },
+  {
+    "id": "INV-ROB-002",
+    "customer_id": "CUST-ROB-002",
+    "amount": 8500000,
+    "issue_date": "2025-11-01",
+    "due_date": "2025-11-15",
+    "status": "Unpaid",
+    "items": [
+      { "description": "IX 150MB / IIX 120MB (Nov 2025)", "amount": 8500000 }
     ]
   }
 ];

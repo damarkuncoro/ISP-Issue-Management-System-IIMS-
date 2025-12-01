@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Maintenance, MaintenanceStatus, UserRole } from '../types';
-import { Calendar, Plus, Clock, MapPin, AlertTriangle, CheckCircle, X, Wrench, Megaphone } from 'lucide-react';
+import { Calendar, Plus, Clock, MapPin, AlertTriangle, CheckCircle, X, Wrench, Megaphone, Server } from 'lucide-react';
 
 interface MaintenanceScheduleProps {
   maintenanceList: Maintenance[];
@@ -9,9 +9,10 @@ interface MaintenanceScheduleProps {
   onAddMaintenance: (data: any) => void;
   onUpdateStatus: (id: string, status: MaintenanceStatus) => void;
   highlightId?: string;
+  onNavigateToDevice?: (deviceId: string) => void; // Added prop
 }
 
-const MaintenanceSchedule: React.FC<MaintenanceScheduleProps> = ({ maintenanceList, userRole, onAddMaintenance, onUpdateStatus, highlightId }) => {
+const MaintenanceSchedule: React.FC<MaintenanceScheduleProps> = ({ maintenanceList, userRole, onAddMaintenance, onUpdateStatus, highlightId, onNavigateToDevice }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<Partial<Maintenance>>({
     title: '',
@@ -20,18 +21,24 @@ const MaintenanceSchedule: React.FC<MaintenanceScheduleProps> = ({ maintenanceLi
     start_time: '',
     end_time: '',
     description: '',
-    status: MaintenanceStatus.SCHEDULED
+    status: MaintenanceStatus.SCHEDULED,
+    affected_devices: []
   });
+  
+  // Local state for device input in modal
+  const [deviceInput, setDeviceInput] = useState('');
 
   const canEdit = userRole === UserRole.NOC || userRole === UserRole.NETWORK || userRole === UserRole.MANAGER;
 
-  // Optional: Auto-scroll or bring the highlighted item to top could be implemented here
-  // For now, we'll sort or filter to show highlighted item first if needed, 
-  // but just adding a visual highlight class is sufficient for this requirement.
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onAddMaintenance(formData);
+    // Parse devices from comma separated string if needed, currently manually added via array in logic below
+    // For simple demo, we keep array empty or mock it. 
+    // In a real app, we'd have a multi-select for devices.
+    onAddMaintenance({
+        ...formData,
+        affected_devices: deviceInput.split(',').map(s => s.trim()).filter(Boolean)
+    });
     setIsModalOpen(false);
     // Reset form
     setFormData({
@@ -41,8 +48,10 @@ const MaintenanceSchedule: React.FC<MaintenanceScheduleProps> = ({ maintenanceLi
         start_time: '',
         end_time: '',
         description: '',
-        status: MaintenanceStatus.SCHEDULED
+        status: MaintenanceStatus.SCHEDULED,
+        affected_devices: []
     });
+    setDeviceInput('');
   };
 
   const getStatusColor = (status: MaintenanceStatus) => {
@@ -97,6 +106,10 @@ const MaintenanceSchedule: React.FC<MaintenanceScheduleProps> = ({ maintenanceLi
                       <label className="block text-sm font-medium text-slate-700 mb-1">End Time</label>
                       <input required type="datetime-local" className="w-full px-4 py-2 border rounded-lg" value={formData.end_time} onChange={e => setFormData({...formData, end_time: e.target.value})} />
                   </div>
+               </div>
+               <div>
+                   <label className="block text-sm font-medium text-slate-700 mb-1">Affected Devices (IDs)</label>
+                   <input type="text" className="w-full px-4 py-2 border rounded-lg" placeholder="Comma separated IDs (e.g. OLT-01, RTR-02)" value={deviceInput} onChange={e => setDeviceInput(e.target.value)} />
                </div>
                <div>
                    <label className="block text-sm font-medium text-slate-700 mb-1">Description & Impact</label>
@@ -161,7 +174,7 @@ const MaintenanceSchedule: React.FC<MaintenanceScheduleProps> = ({ maintenanceLi
                      </div>
                      <p className="text-slate-600 text-sm mb-4">{item.description}</p>
                      
-                     <div className="flex flex-wrap gap-4 text-sm text-slate-500">
+                     <div className="flex flex-wrap gap-4 text-sm text-slate-500 mb-3">
                          <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded">
                              <Wrench size={14} />
                              {item.type}
@@ -175,6 +188,21 @@ const MaintenanceSchedule: React.FC<MaintenanceScheduleProps> = ({ maintenanceLi
                              {new Date(item.start_time).toLocaleString()} - {new Date(item.end_time).toLocaleTimeString()}
                          </div>
                      </div>
+
+                     {item.affected_devices.length > 0 && (
+                         <div className="flex flex-wrap items-center gap-2">
+                             <span className="text-xs font-bold text-slate-400">Affected Assets:</span>
+                             {item.affected_devices.map(devId => (
+                                 <button 
+                                    key={devId}
+                                    onClick={() => onNavigateToDevice && onNavigateToDevice(devId)}
+                                    className="flex items-center gap-1 text-[10px] bg-purple-50 text-purple-700 border border-purple-100 px-2 py-0.5 rounded hover:bg-purple-100 transition"
+                                 >
+                                     <Server size={10} /> {devId}
+                                 </button>
+                             ))}
+                         </div>
+                     )}
                  </div>
 
                  {/* Actions */}

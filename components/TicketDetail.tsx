@@ -196,14 +196,14 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
 
   const getActionColor = (action: string) => {
     const lower = action.toLowerCase();
-    if (lower.includes('created')) return 'bg-slate-400 border-slate-200';
-    if (lower.includes('resolved') || lower.includes('closed')) return 'bg-green-500 border-green-200';
-    if (lower.includes('assigned')) return 'bg-orange-500 border-orange-200';
-    if (lower.includes('ai') || lower.includes('diagnostic')) return 'bg-indigo-500 border-indigo-200';
-    if (lower.includes('alert') || lower.includes('critical') || lower.includes('escalat')) return 'bg-red-500 border-red-200';
-    if (lower.includes('note')) return 'bg-blue-300 border-blue-100';
-    if (lower.includes('status')) return 'bg-cyan-500 border-cyan-200';
-    return 'bg-blue-500 border-blue-200';
+    if (lower.includes('created')) return 'bg-slate-400 border-slate-200 text-slate-500';
+    if (lower.includes('resolved') || lower.includes('closed')) return 'bg-green-500 border-green-300 text-green-600';
+    if (lower.includes('assigned')) return 'bg-orange-500 border-orange-300 text-orange-600';
+    if (lower.includes('ai') || lower.includes('diagnostic')) return 'bg-indigo-500 border-indigo-300 text-indigo-600';
+    if (lower.includes('alert') || lower.includes('critical') || lower.includes('escalat')) return 'bg-red-500 border-red-300 text-red-600';
+    if (lower.includes('note')) return 'bg-blue-400 border-blue-200 text-blue-500';
+    if (lower.includes('status')) return 'bg-cyan-500 border-cyan-300 text-cyan-600';
+    return 'bg-blue-500 border-blue-200 text-blue-600';
   };
 
   // Helper to find device name
@@ -517,28 +517,46 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                 </h3>
                 <div className="space-y-8 relative before:absolute before:inset-y-0 before:left-[19px] before:bg-slate-200 before:w-0.5 before:z-0">
                   {ticket.activityLog && ticket.activityLog.length > 0 ? (
-                    ticket.activityLog.map((event) => (
+                    ticket.activityLog.map((event) => {
+                      const colorClass = getActionColor(event.action);
+                      const bgClass = colorClass.split(' ')[0];
+                      
+                      return (
                       <div key={event.id} className="relative pl-10 z-10 group">
-                          <div className={`absolute left-3 top-1 w-4 h-4 rounded-full border-4 ${getActionColor(event.action)}`}></div>
+                          {/* Timeline Dot */}
+                          <div className={`absolute left-3 top-1 w-4 h-4 rounded-full border-4 ${bgClass.replace('bg-', 'border-')} bg-white`}></div>
+                          
                           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start bg-slate-50 p-4 rounded-lg border border-slate-100 hover:border-blue-100 hover:shadow-sm transition">
                              <div className="flex-1 mr-4">
-                                <h4 className="font-bold text-slate-800 text-sm mb-1">{event.action}</h4>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <h4 className={`font-bold text-sm ${colorClass.split(' ')[2]}`}>{event.action}</h4>
+                                </div>
                                 <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{event.description}</p>
                              </div>
-                             <div className="text-right mt-2 sm:mt-0 flex-shrink-0 min-w-[120px]">
-                                <p className="text-xs font-mono text-slate-500 bg-white px-2 py-1 rounded border border-slate-200 inline-block mb-1">
-                                    {new Date(event.timestamp).toLocaleString()}
-                                </p>
-                                <div className="flex justify-end items-center gap-1.5 mt-1">
-                                    <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600 uppercase">
-                                        {event.user.charAt(0)}
+                             
+                             <div className="text-right mt-2 sm:mt-0 flex-shrink-0 min-w-[130px]">
+                                <div className="flex flex-col items-end">
+                                    <p className="text-[10px] font-medium text-slate-400 mb-0.5">
+                                        {new Date(event.timestamp).toLocaleDateString()}
+                                    </p>
+                                    <p className="text-xs font-mono text-slate-600 bg-white px-2 py-1 rounded border border-slate-200 shadow-sm">
+                                        {new Date(event.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    </p>
+                                </div>
+                                
+                                <div className="flex justify-end items-center gap-1.5 mt-3">
+                                    <span className="text-[10px] text-slate-400">by</span>
+                                    <div className="flex items-center gap-1 bg-slate-200 pr-2 pl-1 py-0.5 rounded-full">
+                                        <div className="w-4 h-4 rounded-full bg-white flex items-center justify-center text-[9px] font-bold text-slate-600 uppercase shadow-sm">
+                                            {event.user.charAt(0)}
+                                        </div>
+                                        <p className="text-[10px] font-bold text-slate-700 truncate max-w-[80px]">{event.user}</p>
                                     </div>
-                                    <p className="text-xs font-semibold text-slate-700">{event.user}</p>
                                 </div>
                              </div>
                           </div>
                       </div>
-                    ))
+                    )})
                   ) : (
                     <div className="text-center py-8 pl-8">
                         <p className="text-sm text-slate-400 italic">No activity logged yet.</p>
