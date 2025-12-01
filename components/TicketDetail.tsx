@@ -6,7 +6,7 @@ import { AIAnalysisResult, analyzeTicketWithGemini } from '../services/geminiSer
 import { 
   ArrowLeft, MapPin, Server, Users, Clock, AlertTriangle, 
   CheckCircle, Play, UserPlus, PenTool, Sparkles, MessageSquare,
-  History, FileText, BrainCircuit, Activity, Link as LinkIcon, Send, Wrench, XCircle, ArrowLeftRight, Printer, BookOpen, Lightbulb, Search, ExternalLink
+  History, FileText, BrainCircuit, Activity, Link as LinkIcon, Send, Wrench, XCircle, ArrowLeftRight, Printer, BookOpen, Lightbulb, Search, ExternalLink, Plus
 } from 'lucide-react';
 import AssignTicketModal from './AssignTicketModal';
 import ResolveTicketModal from './ResolveTicketModal';
@@ -194,22 +194,34 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
       alert("Simulated: Work Order sent to Printer (PDF Generated).");
   };
 
-  const getActionColor = (action: string) => {
+  const getActionConfig = (action: string) => {
     const lower = action.toLowerCase();
-    if (lower.includes('created')) return 'bg-slate-400 border-slate-200 text-slate-500';
-    if (lower.includes('resolved') || lower.includes('closed')) return 'bg-green-500 border-green-300 text-green-600';
-    if (lower.includes('assigned')) return 'bg-orange-500 border-orange-300 text-orange-600';
-    if (lower.includes('ai') || lower.includes('diagnostic')) return 'bg-indigo-500 border-indigo-300 text-indigo-600';
-    if (lower.includes('alert') || lower.includes('critical') || lower.includes('escalat')) return 'bg-red-500 border-red-300 text-red-600';
-    if (lower.includes('note')) return 'bg-blue-400 border-blue-200 text-blue-500';
-    if (lower.includes('status')) return 'bg-cyan-500 border-cyan-300 text-cyan-600';
-    return 'bg-blue-500 border-blue-200 text-blue-600';
+    if (lower.includes('created')) return { color: 'bg-slate-100 text-slate-600 border-slate-300', icon: <Plus size={14} /> };
+    if (lower.includes('resolved')) return { color: 'bg-green-100 text-green-700 border-green-300', icon: <CheckCircle size={14} /> };
+    if (lower.includes('closed')) return { color: 'bg-slate-800 text-slate-100 border-slate-600', icon: <XCircle size={14} /> };
+    if (lower.includes('assigned')) return { color: 'bg-blue-100 text-blue-700 border-blue-300', icon: <UserPlus size={14} /> };
+    if (lower.includes('ai') || lower.includes('diagnostic')) return { color: 'bg-indigo-100 text-indigo-700 border-indigo-300', icon: <Sparkles size={14} /> };
+    if (lower.includes('alert') || lower.includes('critical') || lower.includes('escalat')) return { color: 'bg-red-100 text-red-700 border-red-300', icon: <AlertTriangle size={14} /> };
+    if (lower.includes('note')) return { color: 'bg-yellow-100 text-yellow-700 border-yellow-300', icon: <MessageSquare size={14} /> };
+    if (lower.includes('status')) return { color: 'bg-cyan-100 text-cyan-700 border-cyan-300', icon: <Activity size={14} /> };
+    return { color: 'bg-slate-100 text-slate-600 border-slate-300', icon: <FileText size={14} /> };
   };
 
   // Helper to find device name
   const getDeviceName = (deviceId: string) => {
       const device = devices.find(d => d.id === deviceId);
       return device ? `${device.name} (${device.model})` : deviceId;
+  };
+
+  const calculateTimeAgo = (isoDate: string) => {
+      const now = new Date();
+      const date = new Date(isoDate);
+      const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+      if (diffInSeconds < 60) return 'Just now';
+      if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} mins ago`;
+      if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+      return `${Math.floor(diffInSeconds / 86400)} days ago`;
   };
 
   const getNextActions = () => {
@@ -518,18 +530,22 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                 <div className="space-y-8 relative before:absolute before:inset-y-0 before:left-[19px] before:bg-slate-200 before:w-0.5 before:z-0">
                   {ticket.activityLog && ticket.activityLog.length > 0 ? (
                     ticket.activityLog.map((event) => {
-                      const colorClass = getActionColor(event.action);
+                      const { color: colorClass, icon } = getActionConfig(event.action);
                       const bgClass = colorClass.split(' ')[0];
+                      const borderClass = colorClass.split(' ')[2];
                       
                       return (
-                      <div key={event.id} className="relative pl-10 z-10 group">
-                          {/* Timeline Dot */}
-                          <div className={`absolute left-3 top-1 w-4 h-4 rounded-full border-4 ${bgClass.replace('bg-', 'border-')} bg-white`}></div>
+                      <div key={event.id} className="relative pl-12 z-10 group">
+                          {/* Timeline Dot with Icon */}
+                          <div className={`absolute left-0 top-0 w-10 h-10 rounded-full border-2 ${borderClass} ${bgClass} flex items-center justify-center shadow-sm`}>
+                              {icon}
+                          </div>
                           
                           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start bg-slate-50 p-4 rounded-lg border border-slate-100 hover:border-blue-100 hover:shadow-sm transition">
                              <div className="flex-1 mr-4">
                                 <div className="flex items-center gap-2 mb-1">
-                                    <h4 className={`font-bold text-sm ${colorClass.split(' ')[2]}`}>{event.action}</h4>
+                                    <h4 className={`font-bold text-sm ${colorClass.split(' ')[1]}`}>{event.action}</h4>
+                                    <span className="text-[10px] text-slate-400 px-1.5 py-0.5 bg-white rounded border border-slate-100 shadow-sm">{calculateTimeAgo(event.timestamp)}</span>
                                 </div>
                                 <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{event.description}</p>
                              </div>
