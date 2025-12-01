@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TicketType, Severity, Customer, Device, Invoice, Maintenance } from '../types';
-import { X, Save, Search, User, Server, AlertTriangle, FileText, Wrench } from 'lucide-react';
+import { X, Save, Search, User, Server, AlertTriangle, FileText, Wrench, Link as LinkIcon } from 'lucide-react';
 
 interface CreateTicketModalProps {
   isOpen: boolean;
@@ -58,6 +58,9 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
 
   // --- AUTO FILL LOGIC ---
   const handleSelectCustomer = (customer: Customer) => {
+      // Attempt to find associated device (CPE) for this customer
+      const associatedDevice = devices.find(d => d.customer_id === customer.id);
+
       setFormData(prev => ({
           ...prev,
           title: `Complaint: ${customer.name} - No Connection`,
@@ -65,7 +68,8 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
           location: customer.address,
           impact_users: 1,
           description: `Customer ID: ${customer.id}\nPackage: ${customer.package_name}\nReported Issue: Cannot browse internet.`,
-          link_id: customer.id
+          link_id: customer.id,
+          device_id: associatedDevice ? associatedDevice.id : prev.device_id
       }));
       setShowResults(false);
       setSearchTerm('');
@@ -80,6 +84,9 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
       else if (device.type === 'OLT') { impact = 250; severity = Severity.MAJOR; }
       else if (device.type === 'Switch') { impact = 50; severity = Severity.MAJOR; }
 
+      // Attempt to find associated customer if this device belongs to one
+      const associatedCustomer = customers.find(c => c.id === device.customer_id);
+
       setFormData(prev => ({
           ...prev,
           title: `${device.name} Down`,
@@ -88,7 +95,8 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
           impact_users: impact,
           severity: severity,
           description: `Device ID: ${device.id}\nModel: ${device.model}\nIP: ${device.ip_address}\nStatus: Unreachable via SNMP.`,
-          device_id: device.id
+          device_id: device.id,
+          link_id: associatedCustomer ? associatedCustomer.id : prev.link_id
       }));
       setShowResults(false);
       setSearchTerm('');
@@ -322,13 +330,31 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
           
           {/* Linked IDs (Hidden/Advanced) */}
           <div className="grid grid-cols-2 gap-4">
-             <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Linked Device ID</label>
-                <input type="text" className="w-full px-3 py-1.5 border rounded text-xs" value={formData.device_id} onChange={e => setFormData({...formData, device_id: e.target.value})} placeholder="Optional" />
+             <div className="relative">
+                <label className="block text-xs font-medium text-slate-500 mb-1 flex items-center gap-1">
+                    Linked Device ID <LinkIcon size={10} />
+                </label>
+                <input 
+                    type="text" 
+                    className={`w-full px-3 py-1.5 border rounded text-xs transition-colors ${formData.device_id ? 'bg-indigo-50 border-indigo-200' : ''}`}
+                    value={formData.device_id} 
+                    onChange={e => setFormData({...formData, device_id: e.target.value})} 
+                    placeholder="Optional" 
+                />
+                {formData.device_id && <div className="absolute right-2 top-7 text-[9px] text-indigo-600 font-bold bg-indigo-100 px-1 rounded">LINKED</div>}
              </div>
-             <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Linked Customer ID</label>
-                <input type="text" className="w-full px-3 py-1.5 border rounded text-xs" value={formData.link_id} onChange={e => setFormData({...formData, link_id: e.target.value})} placeholder="Optional" />
+             <div className="relative">
+                <label className="block text-xs font-medium text-slate-500 mb-1 flex items-center gap-1">
+                    Linked Customer ID <LinkIcon size={10} />
+                </label>
+                <input 
+                    type="text" 
+                    className={`w-full px-3 py-1.5 border rounded text-xs transition-colors ${formData.link_id ? 'bg-blue-50 border-blue-200' : ''}`}
+                    value={formData.link_id} 
+                    onChange={e => setFormData({...formData, link_id: e.target.value})} 
+                    placeholder="Optional" 
+                />
+                {formData.link_id && <div className="absolute right-2 top-7 text-[9px] text-blue-600 font-bold bg-blue-100 px-1 rounded">LINKED</div>}
              </div>
           </div>
 
