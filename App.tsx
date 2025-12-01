@@ -376,6 +376,41 @@ const App: React.FC = () => {
   };
 
   const handleUpdateCustomer = (id: string, data: any) => {
+    const originalCustomer = customers.find(c => c.id === id);
+    
+    // Check for Plan Change (Commercial / Radius Logic)
+    if (originalCustomer && (originalCustomer.package_name !== data.package_name || originalCustomer.service_plan_id !== data.service_plan_id)) {
+        const newPlan = servicePlans.find(p => p.name === data.package_name || p.id === data.service_plan_id);
+        
+        if (newPlan) {
+            // Simulated Radius CoA
+            showNotification(
+                'Plan Change Detected', 
+                `Initiating Radius CoA for ${originalCustomer.pppoe_username || 'user'}. New Profile: ${newPlan.name} (${newPlan.speed_mbps} Mbps).`, 
+                'info'
+            );
+            
+            // Update active session locally if exists
+            setRadiusSessions(prev => prev.map(s => {
+                if (s.customer_id === id) {
+                    // Reset rates momentarily to simulate speed change
+                    return { ...s, current_download_rate: 0, current_upload_rate: 0 }; 
+                }
+                return s;
+            }));
+
+            // Add System Log to Radius
+            setRadiusLogs(prev => [{
+                id: `coa-${Date.now()}`,
+                timestamp: new Date().toISOString(),
+                username: originalCustomer.pppoe_username || 'unknown',
+                message: `CoA Request: Filter-Id update to ${newPlan.name}`,
+                reply: 'Accept',
+                nas_ip: '202.133.3.2' // Mock NAS
+            }, ...prev]);
+        }
+    }
+
     setCustomers(prev => prev.map(c => c.id === id ? { ...c, ...data, last_updated: new Date().toISOString() } : c));
     
     if (selectedCustomer && selectedCustomer.id === id) {

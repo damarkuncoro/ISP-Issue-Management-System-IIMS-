@@ -1,11 +1,12 @@
 
 import React, { useState } from 'react';
 import { Device, DeviceStatus, Ticket, UserRole, Customer, DeviceType } from '../types';
-import { ArrowLeft, Server, MapPin, Shield, Activity, Network, Users, Ticket as TicketIcon, Edit, Clock, Settings, CheckCircle, Boxes, Terminal, Box, ChevronRight, X, Play } from 'lucide-react';
+import { ArrowLeft, Server, MapPin, Shield, Activity, Network, Users, Ticket as TicketIcon, Edit, Clock, Settings, CheckCircle, Boxes, Terminal, Box, ChevronRight, X, Play, Zap } from 'lucide-react';
 import LiveTrafficChart from './LiveTrafficChart';
 import AddDeviceModal from './AddDeviceModal';
 import WebTerminal from './WebTerminal';
 import NetworkTopologyTree from './NetworkTopologyTree';
+import OpticalChart from './OpticalChart';
 
 interface DeviceDetailProps {
   device: Device;
@@ -32,7 +33,7 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
 }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPingModalOpen, setIsPingModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'traffic' | 'topology' | 'history' | 'pon_ports' | 'terminal' | 'odp_ports'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'traffic' | 'topology' | 'history' | 'pon_ports' | 'terminal' | 'odp_ports' | 'optical'>('overview');
 
   // Logic
   const connectedDownstream = allDevices.filter(d => d.uplink_device_id === device.id);
@@ -41,8 +42,10 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
   const linkedCustomer = customers.find(c => c.id === device.customer_id);
 
   const isOLT = device.type === DeviceType.OLT;
+  const isONU = device.type === DeviceType.ONU;
   const isODP = device.type === DeviceType.ODP;
   const isPassive = isODP || device.type === DeviceType.ODC;
+  const hasOptical = isOLT || isONU;
 
   const canEdit = userRole === UserRole.NETWORK || userRole === UserRole.NOC || userRole === UserRole.INVENTORY_ADMIN || userRole === UserRole.MANAGER;
   
@@ -77,16 +80,12 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
     const maxPorts = 8; // Simulate 8 port OLT card
     
     // Find all connected ONUs (recursive search ideally, but here direct or via ODP)
-    // Simplified: Find devices where uplink chain leads here. 
-    // For visualization, we just check direct children for now in this mock function
     const directChildren = allDevices.filter(d => d.uplink_device_id === device.id);
     
     for (let i = 1; i <= maxPorts; i++) {
         const portName = `PON-${i}`;
-        // Find children on this port by checking linked customer's olt_port string or simulation
         const connected = directChildren.filter(child => {
             const cust = customers.find(c => c.id === child.customer_id);
-            // Or if child is ODP, assume it takes one PON port
             return (cust?.olt_port?.includes(portName)) || (child.type === DeviceType.ODP && (i % 2 === 0)); // Mock distribution
         });
         
@@ -102,6 +101,28 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
   };
 
   const ponPorts = isOLT ? getPonPorts() : [];
+
+  // Generate Mock Optical Data
+  const generateOpticalData = () => {
+      const data = [];
+      const now = new Date();
+      // Generate 24 hours of data
+      for (let i = 24; i >= 0; i--) {
+          const time = new Date(now.getTime() - i * 3600000); // Hourly
+          // Randomize around -22 for Rx, 2.5 for Tx
+          data.push({
+              time: time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+              rx: -22 + (Math.random() * 2 - 1),
+              tx: 2.5 + (Math.random() * 0.5 - 0.25),
+              temp: 45 + Math.random() * 5,
+              voltage: 3.3 + (Math.random() * 0.1 - 0.05)
+          });
+      }
+      return data;
+  };
+  
+  // Memoize data to avoid refresh on render in real app, simplified here
+  const opticalData = hasOptical ? generateOpticalData() : [];
 
   // --- PING MODAL COMPONENT ---
   const PingModal = () => {
@@ -200,7 +221,7 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
 
       {/* Tabs */}
       <div className="flex gap-4 border-b border-slate-200 overflow-x-auto">
-          {['overview', !isPassive ? 'traffic' : null, 'topology', isOLT ? 'pon_ports' : null, isODP ? 'odp_ports' : null, 'history', canAccessTerminal ? 'terminal' : null].filter(Boolean).map((tab) => (
+          {['overview', !isPassive ? 'traffic' : null, hasOptical ? 'optical' : null, 'topology', isOLT ? 'pon_ports' : null, isODP ? 'odp_ports' : null, 'history', canAccessTerminal ? 'terminal' : null].filter(Boolean).map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
@@ -211,6 +232,7 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
                 }`}
               >
                  {tab === 'terminal' && <Terminal size={14} />}
+                 {tab === 'optical' && <Zap size={14} />}
                  {tab?.replace('_', ' ')}
               </button>
           ))}
@@ -358,6 +380,13 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
       {activeTab === 'traffic' && (
           <div className="animate-in fade-in">
               <LiveTrafficChart deviceName={device.name} />
+          </div>
+      )}
+
+      {/* OPTICAL TAB */}
+      {activeTab === 'optical' && hasOptical && (
+          <div className="animate-in fade-in">
+              <OpticalChart data={opticalData} />
           </div>
       )}
 
