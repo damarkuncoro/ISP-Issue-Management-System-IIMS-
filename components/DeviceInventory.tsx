@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Device, DeviceStatus, UserRole, Customer, Ticket } from '../types';
+import { Device, DeviceStatus, UserRole, Customer, Ticket, RadiusSession } from '../types';
 import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User, Network, Eye, List, GitGraph, Upload, Grid, Map, Box, Radar } from 'lucide-react';
 import AddDeviceModal from './AddDeviceModal';
 import ImportDeviceModal from './ImportDeviceModal';
@@ -17,12 +17,13 @@ interface DeviceInventoryProps {
   onUpdateDevice: (id: string, device: any) => void;
   onValidateDevice: (id: string) => void;
   onSelectDevice?: (device: Device) => void;
-  onNavigateToCustomer?: (customerOrId: string | Customer) => void; // Added for IPAM linking
+  onNavigateToCustomer?: (customerOrId: string | Customer) => void; 
   preSetFilter?: string; 
-  tickets?: Ticket[]; // Added optional tickets for map context
+  tickets?: Ticket[]; 
+  radiusSessions?: RadiusSession[]; // Added for IPAM
 }
 
-const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, customers = [], onAddDevice, onUpdateDevice, onValidateDevice, onSelectDevice, onNavigateToCustomer, preSetFilter, tickets = [] }) => {
+const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, customers = [], onAddDevice, onUpdateDevice, onValidateDevice, onSelectDevice, onNavigateToCustomer, preSetFilter, tickets = [], radiusSessions = [] }) => {
   const [filterText, setFilterText] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -290,6 +291,7 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
                   customers={customers}
                   dhcpRange={currentSubnetConfig ? { start: currentSubnetConfig.dhcpStart, end: currentSubnetConfig.dhcpEnd } : undefined}
                   rogueIps={rogueIps}
+                  radiusSessions={radiusSessions}
                   onNavigateToDevice={(id) => { if(onSelectDevice) { const d = devices.find(x => x.id === id); if(d) onSelectDevice(d); } }}
                   onNavigateToCustomer={(id) => { if(onNavigateToCustomer) onNavigateToCustomer(id); }}
                   onAssignIp={handleAssignIp}
@@ -327,7 +329,7 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
           </div>
       ) : viewMode === 'TREE' ? (
           <NetworkTopologyTree 
-            devices={devices} // Pass all devices, tree handles filtering
+            devices={devices} 
             onSelectDevice={onSelectDevice}
           />
       ) : (

@@ -874,6 +874,7 @@ const App: React.FC = () => {
                     onSelectDevice={handleSelectDevice}
                     preSetFilter={deviceFilter}
                     tickets={tickets} 
+                    radiusSessions={radiusSessions} // Pass active sessions for IPAM
                     onNavigateToCustomer={handleNavigateToCustomer}
                 />
               )}
