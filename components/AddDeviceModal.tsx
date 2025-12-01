@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { DeviceType, DeviceStatus, UserRole, Device, Customer } from '../types';
-import { X, Save, Server, Shield, Camera, FileCheck, AlertTriangle, CheckCircle, Zap, Info, User, Network } from 'lucide-react';
+import { X, Save, Server, Shield, Camera, FileCheck, AlertTriangle, CheckCircle, Zap, Info, User, Network, Lock } from 'lucide-react';
 
 interface AddDeviceModalProps {
   isOpen: boolean;
@@ -56,6 +55,18 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubm
 
   const isEditMode = !!device;
   const isPendingValidation = device?.status === DeviceStatus.PENDING;
+
+  // Define roles allowed to edit IP settings
+  const isNetworkAdmin = 
+    userRole === UserRole.NETWORK || 
+    userRole === UserRole.INVENTORY_ADMIN || 
+    userRole === UserRole.NOC || 
+    userRole === UserRole.MANAGER ||
+    userRole === UserRole.PROVISIONING;
+
+  const canEditIP = isNetworkAdmin; 
+  // Physical editing allowed for admins OR for anyone adding a new device
+  const canEditPhysical = !isEditMode || isNetworkAdmin || (isEditMode && device?.status === DeviceStatus.PENDING); 
 
   useEffect(() => {
     if (device) {
@@ -163,12 +174,6 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubm
     onClose();
   };
 
-  // RBAC LOGIC
-  const isNetworkAdmin = userRole === UserRole.NETWORK || userRole === UserRole.INVENTORY_ADMIN || userRole === UserRole.NOC || userRole === UserRole.MANAGER;
-  
-  const canEditIP = isNetworkAdmin; 
-  const canEditPhysical = !isEditMode || isNetworkAdmin || (isEditMode && device?.status === DeviceStatus.PENDING); 
-
   // Determine Recommendation String
   const getRecommendation = () => {
     let rec = "";
@@ -199,7 +204,7 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubm
                     {isEditMode ? 'Device Configuration' : 'Install New Device'}
                 </h3>
                 <p className="text-xs text-slate-500">
-                    {isNetworkAdmin ? 'Full Access: Provisioning & Validation' : 'Field Access: Installation & Validation'}
+                    {isNetworkAdmin ? 'Admin Access: Full Control' : 'Field Access: Installation Only'}
                 </p>
             </div>
           </div>
@@ -396,17 +401,22 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ isOpen, onClose, onSubm
              <div className="col-span-2 md:col-span-1">
                 <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
                     IP Address 
-                    {!canEditIP && <Shield size={12} className="text-amber-500" />}
+                    {!canEditIP && <Lock size={12} className="text-slate-400" />}
                 </label>
                 <input 
                   type="text" 
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono text-sm disabled:bg-slate-100 disabled:text-slate-500"
-                  placeholder={canEditIP ? "192.168.1.1" : "Assigned by NOC"}
+                  className={`w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono text-sm ${!canEditIP ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white'}`}
+                  placeholder={canEditIP ? "192.168.x.x (Static)" : "Assigned by System"}
                   value={formData.ip_address}
                   onChange={e => setFormData({...formData, ip_address: e.target.value})}
                   disabled={!canEditIP}
                 />
-                {!canEditIP && <p className="text-[10px] text-slate-400 mt-1">Managed by Network Engineering.</p>}
+                {/* Informational Help Text */}
+                {canEditIP ? (
+                    <p className="text-[10px] text-blue-600 mt-1 font-medium">Static IP assignment allowed.</p>
+                ) : (
+                    <p className="text-[10px] text-slate-400 mt-1">Managed by Network Engineering.</p>
+                )}
              </div>
           </div>
           

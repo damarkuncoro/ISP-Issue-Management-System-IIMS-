@@ -11,6 +11,7 @@ interface CreateTicketModalProps {
   invoices?: Invoice[]; // Relational Data
   maintenance?: Maintenance[]; // Relational Data
   preSelectedCustomer?: Customer;
+  preSelectedDevice?: Device;
 }
 
 const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ 
@@ -21,7 +22,8 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
   devices, 
   invoices = [], 
   maintenance = [],
-  preSelectedCustomer 
+  preSelectedCustomer,
+  preSelectedDevice
 }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -42,17 +44,26 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
   const [showResults, setShowResults] = useState(false);
   
   useEffect(() => {
-    // Set default SLA to +4 hours from now
-    const date = new Date();
-    date.setHours(date.getHours() + 4);
-    const defaultSLA = date.toISOString().slice(0, 16); // format for datetime-local
-    setFormData(prev => ({ ...prev, sla_deadline: defaultSLA }));
+    if (isOpen) {
+        // Set default SLA to +4 hours from now, adjusting for local timezone
+        const now = new Date();
+        now.setHours(now.getHours() + 4);
+        
+        // Convert to local ISO string format (YYYY-MM-DDThh:mm) for input type="datetime-local"
+        const offset = now.getTimezoneOffset() * 60000; // offset in milliseconds
+        const localDate = new Date(now.getTime() - offset);
+        const defaultSLA = localDate.toISOString().slice(0, 16);
 
-    // Auto-fill if preSelectedCustomer is provided
-    if (preSelectedCustomer && isOpen) {
-        handleSelectCustomer(preSelectedCustomer);
+        setFormData(prev => ({ ...prev, sla_deadline: defaultSLA }));
+
+        // Auto-fill logic
+        if (preSelectedCustomer) {
+            handleSelectCustomer(preSelectedCustomer);
+        } else if (preSelectedDevice) {
+            handleSelectDevice(preSelectedDevice);
+        }
     }
-  }, [isOpen, preSelectedCustomer]);
+  }, [isOpen, preSelectedCustomer, preSelectedDevice]);
 
   if (!isOpen) return null;
 
@@ -148,7 +159,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
           
           {/* SMART SEARCH BAR - Hide if pre-selected */}
-          {!preSelectedCustomer && (
+          {!preSelectedCustomer && !preSelectedDevice && (
             <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 relative">
                 <label className="block text-xs font-bold text-blue-700 mb-2 uppercase flex items-center gap-2">
                    <Search size={12} /> Smart Auto-Fill
@@ -196,12 +207,15 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
             </div>
           )}
 
-          {preSelectedCustomer && (
-              <div className="bg-green-50 p-3 rounded-lg border border-green-200 flex items-center gap-3">
-                  <User className="text-green-600" size={20} />
+          {(preSelectedCustomer || preSelectedDevice) && (
+              <div className={`p-3 rounded-lg border flex items-center gap-3 ${preSelectedCustomer ? 'bg-green-50 border-green-200' : 'bg-purple-50 border-purple-200'}`}>
+                  {preSelectedCustomer ? <User className="text-green-600" size={20} /> : <Server className="text-purple-600" size={20} />}
                   <div>
-                      <p className="text-xs text-green-700 font-bold">Creating ticket for:</p>
-                      <p className="text-sm font-medium text-slate-800">{preSelectedCustomer.name} <span className="text-slate-500 text-xs">({preSelectedCustomer.id})</span></p>
+                      <p className={`text-xs font-bold ${preSelectedCustomer ? 'text-green-700' : 'text-purple-700'}`}>Creating ticket for:</p>
+                      <p className="text-sm font-medium text-slate-800">
+                          {preSelectedCustomer ? preSelectedCustomer.name : preSelectedDevice?.name} 
+                          <span className="text-slate-500 text-xs"> ({preSelectedCustomer ? preSelectedCustomer.id : preSelectedDevice?.id})</span>
+                      </p>
                   </div>
               </div>
           )}

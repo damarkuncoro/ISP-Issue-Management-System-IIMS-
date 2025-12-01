@@ -179,26 +179,8 @@ const App: React.FC = () => {
   };
 
   const handleUpdateCustomer = (id: string, data: any) => {
-      const oldCustomer = customers.find(c => c.id === id);
-      
       setCustomers(prev => prev.map(c => c.id === id ? { ...c, ...data, last_updated: new Date().toISOString() } : c));
       addNotification('success', 'Customer Updated', 'Changes saved successfully.');
-
-      // SIMULATE RADIUS CoA (Change of Authorization) on Plan Change
-      if (oldCustomer && (data.package_name || data.service_plan_id)) {
-          const oldPlan = oldCustomer.package_name;
-          const newPlan = data.package_name || oldCustomer.package_name;
-          
-          if (oldPlan !== newPlan) {
-              const session = radiusSessions.find(s => s.customer_id === id);
-              if (session) {
-                  // In a real app, this would send an API call to the Radius server
-                  setTimeout(() => {
-                      addNotification('info', 'Radius CoA Triggered', `Speed limit update sent to NAS for user ${oldCustomer.pppoe_username || 'unknown'} (Plan: ${newPlan}).`);
-                  }, 1000);
-              }
-          }
-      }
   };
 
   const handleVerifyCustomer = (id: string, data: any) => {
@@ -566,7 +548,6 @@ const App: React.FC = () => {
                       onCreateTicket={handleCreateTicket}
                       onAddDevice={handleAddDevice}
                       onTerminateCustomer={handleTerminateCustomer}
-                      onKickSession={handleKickSession}
                   />
               )}
 
@@ -611,16 +592,6 @@ const App: React.FC = () => {
                       plans={servicePlans} 
                       userRole={currentUserRole} 
                       onAddPlan={handleAddPlan}
-                  />
-              )}
-
-              {currentView === View.EMPLOYEES && (
-                  <EmployeeManagement 
-                      employees={employees}
-                      userRole={currentUserRole}
-                      onAddEmployee={handleAddEmployee}
-                      onUpdateEmployee={handleUpdateEmployee}
-                      onSelectEmployee={navigateToEmployee}
                   />
               )}
 

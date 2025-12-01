@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { Device, DeviceStatus, UserRole, Customer, Ticket, RadiusSession } from '../types';
-import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User, Network, Eye, List, GitGraph, Upload, Grid, Map, Box, Radar } from 'lucide-react';
+import { Search, Server, Plus, CheckCircle, Clock, ShieldCheck, MapPin, Hash, Edit, Image as ImageIcon, User, Network, Eye, List, GitGraph, Upload, Grid, Map, Box, Radar, ChevronRight } from 'lucide-react';
 import AddDeviceModal from './AddDeviceModal';
 import ImportDeviceModal from './ImportDeviceModal';
 import NetworkTopologyTree from './NetworkTopologyTree';
@@ -158,6 +157,36 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
 
   const currentSubnetConfig = availableSubnets.find(s => s.subnet === selectedSubnet);
 
+  // Helper to calculate usage stats for a subnet
+  const getSubnetUsage = (subnetPrefix: string) => {
+      const usedIPs = new Set();
+      
+      // 1. Devices
+      devices.forEach(d => {
+          if (d.ip_address && d.ip_address.startsWith(subnetPrefix + '.')) {
+              usedIPs.add(d.ip_address);
+          }
+      });
+
+      // 2. Customers
+      customers.forEach(c => {
+          if (c.ip_address && c.ip_address.startsWith(subnetPrefix + '.')) {
+              usedIPs.add(c.ip_address);
+          }
+      });
+
+      // 3. Radius Sessions
+      radiusSessions.forEach(s => {
+          if (s.ip_address && s.ip_address.startsWith(subnetPrefix + '.') && s.status === 'Active') {
+              usedIPs.add(s.ip_address);
+          }
+      });
+
+      // Reserved .0, .1, .255 are implicit in logic usually, but let's count them as overhead or ignore for "usage"
+      // IPAMGrid considers them "RESERVED". Let's just return count.
+      return usedIPs.size;
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <AddDeviceModal 
@@ -254,48 +283,86 @@ const DeviceInventory: React.FC<DeviceInventoryProps> = ({ devices, userRole, cu
               <TopologyMap devices={devices} tickets={tickets} />
           </div>
       ) : viewMode === 'IPAM' ? (
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b border-slate-100 pb-4">
-                  <div className="flex items-center gap-4">
-                      <h4 className="font-bold text-slate-700">Select Subnet:</h4>
-                      <select 
-                        className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
-                        value={selectedSubnet}
-                        onChange={(e) => { setSelectedSubnet(e.target.value); setRogueIps([]); }}
-                      >
-                          {availableSubnets.map(s => (
-                              <option key={s.subnet} value={s.subnet}>{s.subnet}.0/24 - {s.description}</option>
-                          ))}
-                      </select>
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {/* Sidebar: Subnet List */}
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col h-[650px]">
+                  <h4 className="font-bold text-slate-700 mb-4 px-2">Subnets</h4>
+                  <div className="overflow-y-auto flex-1 space-y-2 pr-2">
+                      {availableSubnets.map(s => {
+                          const usageCount = getSubnetUsage(s.subnet);
+                          const usagePercent = Math.round((usageCount / 256) * 100);
+                          const isSelected = selectedSubnet === s.subnet;
+                          
+                          return (
+                              <div 
+                                key={s.subnet}
+                                onClick={() => { setSelectedSubnet(s.subnet); setRogueIps([]); }}
+                                className={`p-3 rounded-lg border cursor-pointer transition ${
+                                    isSelected 
+                                    ? 'bg-blue-50 border-blue-300 shadow-sm' 
+                                    : 'bg-white border-slate-100 hover:bg-slate-50 hover:border-slate-200'
+                                }`}
+                              >
+                                  <div className="flex justify-between items-center mb-1">
+                                      <span className={`text-sm font-bold font-mono ${isSelected ? 'text-blue-800' : 'text-slate-700'}`}>
+                                          {s.subnet}.0/24
+                                      </span>
+                                      {isSelected && <ChevronRight size={14} className="text-blue-500" />}
+                                  </div>
+                                  <p className="text-[10px] text-slate-500 truncate mb-2">{s.description}</p>
+                                  
+                                  {/* Mini Progress Bar */}
+                                  <div className="flex items-center gap-2">
+                                      <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                          <div 
+                                            className={`h-full rounded-full ${usagePercent > 80 ? 'bg-red-500' : 'bg-green-500'}`} 
+                                            style={{width: `${usagePercent}%`}}
+                                          ></div>
+                                      </div>
+                                      <span className="text-[9px] font-bold text-slate-400">{usagePercent}%</span>
+                                  </div>
+                              </div>
+                          );
+                      })}
                   </div>
-                  <button 
-                    onClick={handleScanNetwork}
-                    disabled={isScanning}
-                    className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
-                  >
-                      {isScanning ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div>
-                            Scanning...
-                          </>
-                      ) : (
-                          <>
-                            <Radar size={16} /> Scan Network
-                          </>
-                      )}
-                  </button>
               </div>
-              <IPAMGrid 
-                  subnet={selectedSubnet}
-                  devices={devices}
-                  customers={customers}
-                  dhcpRange={currentSubnetConfig ? { start: currentSubnetConfig.dhcpStart, end: currentSubnetConfig.dhcpEnd } : undefined}
-                  rogueIps={rogueIps}
-                  radiusSessions={radiusSessions}
-                  onNavigateToDevice={(id) => { if(onSelectDevice) { const d = devices.find(x => x.id === id); if(d) onSelectDevice(d); } }}
-                  onNavigateToCustomer={(id) => { if(onNavigateToCustomer) onNavigateToCustomer(id); }}
-                  onAssignIp={handleAssignIp}
-              />
+
+              {/* Main IP Grid */}
+              <div className="lg:col-span-3 bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-[650px] flex flex-col">
+                  <div className="flex justify-between items-center mb-4">
+                      <h4 className="font-bold text-slate-700">Allocation Table</h4>
+                      <button 
+                        onClick={handleScanNetwork}
+                        disabled={isScanning}
+                        className="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                      >
+                          {isScanning ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                                Scanning...
+                              </>
+                          ) : (
+                              <>
+                                <Radar size={16} /> Scan Rogue IPs
+                              </>
+                          )}
+                      </button>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto pr-2">
+                      <IPAMGrid 
+                          subnet={selectedSubnet}
+                          devices={devices}
+                          customers={customers}
+                          dhcpRange={currentSubnetConfig ? { start: currentSubnetConfig.dhcpStart, end: currentSubnetConfig.dhcpEnd } : undefined}
+                          rogueIps={rogueIps}
+                          radiusSessions={radiusSessions}
+                          onNavigateToDevice={(id) => { if(onSelectDevice) { const d = devices.find(x => x.id === id); if(d) onSelectDevice(d); } }}
+                          onNavigateToCustomer={(id) => { if(onNavigateToCustomer) onNavigateToCustomer(id); }}
+                          onAssignIp={handleAssignIp}
+                      />
+                  </div>
+              </div>
           </div>
       ) : viewMode === 'RACK' ? (
           <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">

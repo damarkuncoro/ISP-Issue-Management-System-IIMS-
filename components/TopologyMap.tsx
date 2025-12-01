@@ -1,6 +1,7 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Ticket, Severity, TicketStatus, Device, DeviceStatus, DeviceType } from '../types';
+import { Layers, Check } from 'lucide-react';
 
 declare const L: any;
 
@@ -12,6 +13,13 @@ interface TopologyMapProps {
 const TopologyMap: React.FC<TopologyMapProps> = ({ tickets = [], devices = [] }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
+  
+  const [activeLayers, setActiveLayers] = useState({
+      devices: true,
+      tickets: true,
+      links: true
+  });
+  const [isLayerMenuOpen, setIsLayerMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -38,7 +46,7 @@ const TopologyMap: React.FC<TopologyMapProps> = ({ tickets = [], devices = [] })
     });
 
     // --- DRAW LINKS (Cables) FIRST (so they are behind markers) ---
-    if (devices.length > 0) {
+    if (activeLayers.links && devices.length > 0) {
         devices.forEach(device => {
             if (device.coordinates && device.uplink_device_id) {
                 const uplink = devices.find(d => d.id === device.uplink_device_id);
@@ -70,104 +78,108 @@ const TopologyMap: React.FC<TopologyMapProps> = ({ tickets = [], devices = [] })
     }
 
     // --- DRAW DEVICE MARKERS ---
-    devices.forEach(device => {
-        if (device.coordinates) {
-            // Choose shape/color based on Device Type
-            let color = '#3b82f6'; // Blue
-            let shape = 'square';
-            let label: string = device.type;
-            
-            if (device.type === DeviceType.ROUTER) { color = '#6366f1'; shape = 'diamond'; } // Indigo
-            if (device.type === DeviceType.OLT) { color = '#8b5cf6'; shape = 'square'; } // Purple
-            if (device.type === DeviceType.SWITCH) { color = '#0ea5e9'; shape = 'circle'; } // Sky
-            if (device.type === DeviceType.ONU) { color = '#10b981'; shape = 'circle'; } // Green
-            if (device.type === DeviceType.ODP) { color = '#ec4899'; shape = 'triangle'; label = 'ODP'; } // Pink
-            if (device.type === DeviceType.ODC) { color = '#64748b'; shape = 'square'; label = 'ODC'; } // Slate
+    if (activeLayers.devices) {
+        devices.forEach(device => {
+            if (device.coordinates) {
+                // Choose shape/color based on Device Type
+                let color = '#3b82f6'; // Blue
+                let shape = 'square';
+                let label: string = device.type;
+                
+                if (device.type === DeviceType.ROUTER) { color = '#6366f1'; shape = 'diamond'; } // Indigo
+                if (device.type === DeviceType.OLT) { color = '#8b5cf6'; shape = 'square'; } // Purple
+                if (device.type === DeviceType.SWITCH) { color = '#0ea5e9'; shape = 'circle'; } // Sky
+                if (device.type === DeviceType.ONU) { color = '#10b981'; shape = 'circle'; } // Green
+                if (device.type === DeviceType.ODP) { color = '#ec4899'; shape = 'triangle'; label = 'ODP'; } // Pink
+                if (device.type === DeviceType.ODC) { color = '#64748b'; shape = 'square'; label = 'ODC'; } // Slate
 
-            if (device.status !== DeviceStatus.ACTIVE) color = '#94a3b8'; // Grey if offline
+                if (device.status !== DeviceStatus.ACTIVE) color = '#94a3b8'; // Grey if offline
 
-            // Custom Icon HTML
-            let iconShapeStyle = '';
-            if (shape === 'circle') iconShapeStyle = 'border-radius: 50%;';
-            if (shape === 'diamond') iconShapeStyle = 'transform: rotate(45deg);';
-            if (shape === 'triangle') iconShapeStyle = 'clip-path: polygon(50% 0%, 0% 100%, 100% 100%); width: 14px; height: 12px; border: none;';
+                // Custom Icon HTML
+                let iconShapeStyle = '';
+                if (shape === 'circle') iconShapeStyle = 'border-radius: 50%;';
+                if (shape === 'diamond') iconShapeStyle = 'transform: rotate(45deg);';
+                if (shape === 'triangle') iconShapeStyle = 'clip-path: polygon(50% 0%, 0% 100%, 100% 100%); width: 14px; height: 12px; border: none;';
 
-            const iconHtml = `
-                <div style="
-                    background-color: ${color}; 
-                    width: 12px; height: 12px; 
-                    border: 2px solid white; 
-                    box-shadow: 0 0 4px rgba(0,0,0,0.4);
-                    ${iconShapeStyle}
-                "></div>
-            `;
+                const iconHtml = `
+                    <div style="
+                        background-color: ${color}; 
+                        width: 12px; height: 12px; 
+                        border: 2px solid white; 
+                        box-shadow: 0 0 4px rgba(0,0,0,0.4);
+                        ${iconShapeStyle}
+                    "></div>
+                `;
 
-            const icon = L.divIcon({
-                className: 'device-icon',
-                html: iconHtml,
-                iconSize: [12, 12],
-                iconAnchor: [6, 6]
-            });
+                const icon = L.divIcon({
+                    className: 'device-icon',
+                    html: iconHtml,
+                    iconSize: [12, 12],
+                    iconAnchor: [6, 6]
+                });
 
-            L.marker([device.coordinates.lat, device.coordinates.lng], { icon })
-                .addTo(map)
-                .bindPopup(`
-                    <div style="font-family: sans-serif;">
-                        <div style="font-size: 10px; font-weight: bold; color: #64748b;">${label}</div>
-                        <strong style="font-size: 13px; display:block; margin-bottom:2px;">${device.name}</strong>
-                        <div style="font-size: 11px;">${device.ip_address || 'Passive'}</div>
-                        <div style="font-size: 10px; margin-top: 4px; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; display: inline-block;">
-                            ${device.status}
+                L.marker([device.coordinates.lat, device.coordinates.lng], { icon })
+                    .addTo(map)
+                    .bindPopup(`
+                        <div style="font-family: sans-serif;">
+                            <div style="font-size: 10px; font-weight: bold; color: #64748b;">${label}</div>
+                            <strong style="font-size: 13px; display:block; margin-bottom:2px;">${device.name}</strong>
+                            <div style="font-size: 11px;">${device.ip_address || 'Passive'}</div>
+                            <div style="font-size: 10px; margin-top: 4px; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; display: inline-block;">
+                                ${device.status}
+                            </div>
                         </div>
-                    </div>
-                `);
-        }
-    });
+                    `);
+            }
+        });
+    }
 
     // --- DRAW TICKET MARKERS (Pulse Effect) ---
-    tickets.forEach(ticket => {
-      if (ticket.coordinates && ticket.status !== TicketStatus.CLOSED) {
-        let color = '#3b82f6';
-        if (ticket.severity === Severity.CRITICAL) color = '#dc2626';
-        else if (ticket.severity === Severity.MAJOR) color = '#ea580c';
-        else if (ticket.status === TicketStatus.RESOLVED) color = '#22c55e';
+    if (activeLayers.tickets) {
+        tickets.forEach(ticket => {
+          if (ticket.coordinates && ticket.status !== TicketStatus.CLOSED) {
+            let color = '#3b82f6';
+            if (ticket.severity === Severity.CRITICAL) color = '#dc2626';
+            else if (ticket.severity === Severity.MAJOR) color = '#ea580c';
+            else if (ticket.status === TicketStatus.RESOLVED) color = '#22c55e';
 
-        // Pulse Animation for Critical
-        const isPulse = ticket.severity === Severity.CRITICAL;
-        const pulseHtml = isPulse ? 
-            `<div style="position: absolute; width: 100%; height: 100%; border-radius: 50%; background-color: ${color}; opacity: 0.4; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>` : '';
+            // Pulse Animation for Critical
+            const isPulse = ticket.severity === Severity.CRITICAL;
+            const pulseHtml = isPulse ? 
+                `<div style="position: absolute; width: 100%; height: 100%; border-radius: 50%; background-color: ${color}; opacity: 0.4; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>` : '';
 
-        const icon = L.divIcon({
-          className: 'ticket-icon',
-          html: `
-            <div style="position: relative; width: 20px; height: 20px;">
-                ${pulseHtml}
-                <div style="position: absolute; top: 3px; left: 3px; background-color: ${color}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
-            </div>
-            <style>
-                @keyframes ping {
-                    75%, 100% { transform: scale(2); opacity: 0; }
-                }
-            </style>
-          `,
-          iconSize: [20, 20],
-          iconAnchor: [10, 10]
+            const icon = L.divIcon({
+              className: 'ticket-icon',
+              html: `
+                <div style="position: relative; width: 20px; height: 20px;">
+                    ${pulseHtml}
+                    <div style="position: absolute; top: 3px; left: 3px; background-color: ${color}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
+                </div>
+                <style>
+                    @keyframes ping {
+                        75%, 100% { transform: scale(2); opacity: 0; }
+                    }
+                </style>
+              `,
+              iconSize: [20, 20],
+              iconAnchor: [10, 10]
+            });
+
+            L.marker([ticket.coordinates.lat, ticket.coordinates.lng], { icon, zIndexOffset: 1000 })
+              .addTo(map)
+              .bindPopup(`
+                <div style="font-family: sans-serif;">
+                  <div style="font-size: 10px; font-weight: bold; color: ${color}; uppercase">TICKET: ${ticket.severity}</div>
+                  <strong style="font-size: 13px; display:block; margin-bottom:4px;">${ticket.id}</strong>
+                  <div style="font-size: 12px; margin-bottom:4px;">${ticket.title}</div>
+                  <span style="font-size: 10px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0;">${ticket.status}</span>
+                </div>
+              `);
+          }
         });
+    }
 
-        L.marker([ticket.coordinates.lat, ticket.coordinates.lng], { icon, zIndexOffset: 1000 })
-          .addTo(map)
-          .bindPopup(`
-            <div style="font-family: sans-serif;">
-              <div style="font-size: 10px; font-weight: bold; color: ${color}; uppercase">TICKET: ${ticket.severity}</div>
-              <strong style="font-size: 13px; display:block; margin-bottom:4px;">${ticket.id}</strong>
-              <div style="font-size: 12px; margin-bottom:4px;">${ticket.title}</div>
-              <span style="font-size: 10px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0;">${ticket.status}</span>
-            </div>
-          `);
-      }
-    });
-
-  }, [tickets, devices]);
+  }, [tickets, devices, activeLayers]);
 
   return (
     <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
@@ -176,11 +188,54 @@ const TopologyMap: React.FC<TopologyMapProps> = ({ tickets = [], devices = [] })
                 <h4 className="text-lg font-semibold text-slate-800">Geographic Topology</h4>
                 <p className="text-xs text-slate-500">Physical assets & incident visualization</p>
             </div>
-            <div className="flex gap-4 text-xs">
-                <div className="flex items-center gap-1"><span className="w-3 h-1 bg-green-500"></span> Link OK</div>
-                <div className="flex items-center gap-1"><span className="w-3 h-1 bg-red-500"></span> Link Down</div>
-                <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-600 border border-white"></span> Critical Ticket</div>
-                <div className="flex items-center gap-1"><div className="w-2 h-2 bg-pink-500" style={{clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div> ODP</div>
+            
+            <div className="flex items-center gap-4">
+                <div className="hidden xl:flex gap-4 text-xs">
+                    <div className="flex items-center gap-1"><span className="w-3 h-1 bg-green-500"></span> Link OK</div>
+                    <div className="flex items-center gap-1"><span className="w-3 h-1 bg-red-500"></span> Link Down</div>
+                    <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-600 border border-white"></span> Critical Ticket</div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-pink-500" style={{clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div> ODP</div>
+                </div>
+
+                {/* Layer Control */}
+                <div className="relative">
+                    <button 
+                        onClick={() => setIsLayerMenuOpen(!isLayerMenuOpen)}
+                        className={`p-2 rounded-lg border transition flex items-center gap-2 text-xs font-bold ${isLayerMenuOpen ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                    >
+                        <Layers size={14} /> Layers
+                    </button>
+                    
+                    {isLayerMenuOpen && (
+                        <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 p-2 z-20 animate-in fade-in slide-in-from-top-2">
+                            <div className="text-[10px] font-bold text-slate-400 uppercase px-2 py-1">Map Overlays</div>
+                            
+                            <button 
+                                onClick={() => setActiveLayers(prev => ({...prev, tickets: !prev.tickets}))}
+                                className="w-full flex items-center justify-between px-2 py-2 hover:bg-slate-50 rounded text-sm text-slate-700"
+                            >
+                                <span>Active Tickets</span>
+                                {activeLayers.tickets && <Check size={14} className="text-blue-600" />}
+                            </button>
+                            
+                            <button 
+                                onClick={() => setActiveLayers(prev => ({...prev, devices: !prev.devices}))}
+                                className="w-full flex items-center justify-between px-2 py-2 hover:bg-slate-50 rounded text-sm text-slate-700"
+                            >
+                                <span>Devices</span>
+                                {activeLayers.devices && <Check size={14} className="text-blue-600" />}
+                            </button>
+
+                            <button 
+                                onClick={() => setActiveLayers(prev => ({...prev, links: !prev.links}))}
+                                className="w-full flex items-center justify-between px-2 py-2 hover:bg-slate-50 rounded text-sm text-slate-700"
+                            >
+                                <span>Connection Links</span>
+                                {activeLayers.links && <Check size={14} className="text-blue-600" />}
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
         <div 

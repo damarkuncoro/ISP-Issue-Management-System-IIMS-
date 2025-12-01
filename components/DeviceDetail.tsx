@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
-import { Device, DeviceStatus, Ticket, UserRole, Customer, DeviceType } from '../types';
+import { Device, DeviceStatus, Ticket, UserRole, Customer, DeviceType, Invoice, Maintenance } from '../types';
 import { ArrowLeft, Server, MapPin, Shield, Activity, Network, Users, Ticket as TicketIcon, Edit, Clock, Settings, CheckCircle, Boxes, Terminal, Box, ChevronRight, X, Play, Zap } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import LiveTrafficChart from './LiveTrafficChart';
 import AddDeviceModal from './AddDeviceModal';
+import CreateTicketModal from './CreateTicketModal';
 import WebTerminal from './WebTerminal';
 import NetworkTopologyTree from './NetworkTopologyTree';
 import OpticalChart from './OpticalChart';
@@ -14,11 +15,14 @@ interface DeviceDetailProps {
   allDevices: Device[];
   tickets: Ticket[];
   customers: Customer[]; // To verify customer names if needed
+  invoices?: Invoice[];
+  maintenance?: Maintenance[];
   userRole: UserRole;
   onBack: () => void;
   onUpdateDevice: (id: string, data: any) => void;
   onNavigateToTicket: (ticket: Ticket) => void;
   onNavigateToDevice: (deviceId: string) => void;
+  onCreateTicket?: (ticketData: any) => void;
 }
 
 const DeviceDetail: React.FC<DeviceDetailProps> = ({ 
@@ -26,14 +30,18 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
     allDevices, 
     tickets, 
     customers,
+    invoices = [],
+    maintenance = [],
     userRole, 
     onBack, 
     onUpdateDevice,
     onNavigateToTicket,
-    onNavigateToDevice
+    onNavigateToDevice,
+    onCreateTicket
 }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPingModalOpen, setIsPingModalOpen] = useState(false);
+  const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'traffic' | 'topology' | 'history' | 'pon_ports' | 'terminal' | 'odp_ports' | 'optical'>('overview');
 
   // Logic
@@ -56,6 +64,11 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
   const handleUpdate = (data: any) => {
       onUpdateDevice(device.id, data);
       setIsEditModalOpen(false);
+  };
+
+  const handleTicketSubmit = (data: any) => {
+      if (onCreateTicket) onCreateTicket(data);
+      setIsTicketModalOpen(false);
   };
 
   // Upstream Trace
@@ -217,6 +230,20 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
           />
       )}
 
+      {/* Create Ticket Modal */}
+      {isTicketModalOpen && onCreateTicket && (
+          <CreateTicketModal 
+            isOpen={isTicketModalOpen}
+            onClose={() => setIsTicketModalOpen(false)}
+            onSubmit={handleTicketSubmit}
+            customers={customers}
+            devices={allDevices}
+            invoices={invoices}
+            maintenance={maintenance}
+            preSelectedDevice={device}
+          />
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-4">
         <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full transition text-slate-600">
@@ -268,6 +295,79 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
       {activeTab === 'overview' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-6">
+                  
+                  {/* NETWORK POSITION CARD */}
+                  <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                      <div className="flex justify-between items-center mb-6">
+                          <h4 className="font-bold text-slate-700 flex items-center gap-2">
+                              <Network size={18} className="text-blue-500" /> Network Position
+                          </h4>
+                          <button 
+                              onClick={() => setActiveTab('topology')}
+                              className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded transition"
+                          >
+                              View Topology Map <ChevronRight size={12} />
+                          </button>
+                      </div>
+                      
+                      <div className="flex items-center justify-around relative py-2">
+                          {/* Connection Line */}
+                          <div className="absolute top-1/2 left-12 right-12 h-0.5 bg-slate-200 -z-0 transform -translate-y-6"></div>
+
+                          {/* UPLINK */}
+                          <div 
+                              className={`relative z-10 flex flex-col items-center gap-2 group ${parentDevice ? 'cursor-pointer' : ''}`}
+                              onClick={() => parentDevice && onNavigateToDevice(parentDevice.id)}
+                          >
+                               <div className={`w-14 h-14 flex items-center justify-center rounded-full border-4 transition-all duration-200 shadow-sm ${
+                                   parentDevice 
+                                   ? 'bg-white border-slate-200 text-slate-500 group-hover:border-blue-400 group-hover:text-blue-600' 
+                                   : 'bg-slate-50 border-slate-100 text-slate-300'
+                               }`}>
+                                   <Server size={20} />
+                               </div>
+                               <div className="text-center bg-white px-2 relative">
+                                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Uplink</p>
+                                   <p className="text-xs font-bold text-slate-800 max-w-[100px] truncate leading-tight">
+                                      {parentDevice ? parentDevice.name : 'Core / Root'}
+                                   </p>
+                                   {parentDevice && <p className="text-[9px] text-slate-500 font-mono mt-0.5">{parentDevice.ip_address}</p>}
+                               </div>
+                          </div>
+
+                          {/* CURRENT */}
+                          <div className="relative z-10 flex flex-col items-center gap-2 -mt-4">
+                               <div className="w-20 h-20 flex items-center justify-center rounded-full border-4 border-blue-100 bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-xl ring-4 ring-white">
+                                   {isOLT ? <Server size={32} /> : <Server size={32} />} 
+                               </div>
+                               <div className="text-center bg-white px-3 relative mt-1">
+                                   <span className="inline-block text-[9px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full mb-1">THIS DEVICE</span>
+                                   <p className="text-sm font-bold text-slate-900 leading-tight">{device.name}</p>
+                                   <p className="text-[10px] text-slate-500 font-mono mt-0.5">{device.ip_address || 'Passive'}</p>
+                               </div>
+                          </div>
+
+                          {/* DOWNSTREAM */}
+                          <div className="relative z-10 flex flex-col items-center gap-2">
+                               <div className="w-14 h-14 flex items-center justify-center rounded-full border-4 border-slate-200 bg-white text-slate-600 shadow-sm">
+                                   <div className="relative">
+                                      <Users size={20} />
+                                      {connectedDownstream.length > 0 && (
+                                        <span className="absolute -top-3 -right-3 bg-indigo-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white shadow-sm">
+                                            {connectedDownstream.length}
+                                        </span>
+                                      )}
+                                   </div>
+                               </div>
+                               <div className="text-center bg-white px-2 relative">
+                                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Downstream</p>
+                                   <p className="text-xs font-bold text-slate-800 leading-tight">Connected Peers</p>
+                                   <p className="text-[9px] text-slate-500 mt-0.5">{connectedDownstream.length} Devices</p>
+                               </div>
+                          </div>
+                      </div>
+                  </div>
+
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                       <h4 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
                           <Server size={18} className="text-indigo-500" /> Device Specifications
@@ -393,7 +493,10 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
                                 </button>
                               </>
                           )}
-                          <button className="w-full text-left px-3 py-2 bg-white border border-slate-200 rounded text-sm hover:border-blue-400 hover:text-blue-600 transition flex items-center gap-2">
+                          <button 
+                            onClick={() => setIsTicketModalOpen(true)}
+                            className="w-full text-left px-3 py-2 bg-white border border-slate-200 rounded text-sm hover:border-blue-400 hover:text-blue-600 transition flex items-center gap-2"
+                          >
                               <TicketIcon size={14} /> Report Issue
                           </button>
                       </div>

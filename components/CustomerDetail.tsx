@@ -16,12 +16,13 @@ interface CustomerDetailProps {
   servicePlans: ServicePlan[];
   invoices?: Invoice[];
   devices?: Device[]; 
-  tickets?: Ticket[]; // Added tickets prop
+  tickets?: Ticket[]; 
   onBack: () => void;
   onUpdateCustomer: (id: string, data: any) => void;
   onCreateTicket?: (ticketData: any) => void;
   onAddDevice?: (deviceData: any) => void;
   onTerminateCustomer?: (id: string, reason: string, date: string, createTicket: boolean) => void;
+  onKickSession?: (sessionId: string) => void; // Added prop
 }
 
 const CustomerDetail: React.FC<CustomerDetailProps> = ({ 
@@ -35,7 +36,8 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
     onUpdateCustomer,
     onCreateTicket,
     onAddDevice,
-    onTerminateCustomer
+    onTerminateCustomer,
+    onKickSession
 }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
@@ -464,7 +466,10 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                             </div>
                             <div className="flex justify-between items-center pt-2 border-t border-green-200">
                                 <span className="text-xs text-slate-500 font-bold">Action</span>
-                                <button className="text-xs text-red-600 hover:text-white hover:bg-red-500 px-2 py-1 rounded border border-red-200 hover:border-red-500 transition flex items-center gap-1">
+                                <button 
+                                    onClick={() => onKickSession && onKickSession(activeSession.id)}
+                                    className="text-xs text-red-600 hover:text-white hover:bg-red-500 px-2 py-1 rounded border border-red-200 hover:border-red-500 transition flex items-center gap-1"
+                                >
                                     <XCircle size={10} /> Kick
                                 </button>
                             </div>
