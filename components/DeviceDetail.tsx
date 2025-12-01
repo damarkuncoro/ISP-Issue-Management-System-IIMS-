@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Device, DeviceStatus, Ticket, UserRole, Customer, DeviceType, Invoice, Maintenance } from '../types';
 import { ArrowLeft, Server, MapPin, Shield, Activity, Network, Users, Ticket as TicketIcon, Edit, Clock, Settings, CheckCircle, Boxes, Terminal, Box, ChevronRight, X, Play, Zap, Power, RotateCcw, AlertTriangle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -25,6 +24,18 @@ interface DeviceDetailProps {
   onCreateTicket?: (ticketData: any) => void;
 }
 
+interface PonPort {
+    id: number;
+    name: string;
+    adminStatus: 'UP' | 'DOWN';
+    operStatus: 'UP' | 'DOWN';
+    moduleType: string;
+    txPower: string;
+    connectedCount: number;
+    children: Device[];
+    capacity: number;
+}
+
 const DeviceDetail: React.FC<DeviceDetailProps> = ({ 
     device, 
     allDevices, 
@@ -43,6 +54,9 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
   const [isPingModalOpen, setIsPingModalOpen] = useState(false);
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'traffic' | 'topology' | 'history' | 'pon_ports' | 'terminal' | 'odp_ports' | 'optical'>('overview');
+  
+  // OLT Port State for Management Simulation
+  const [localPonPorts, setLocalPonPorts] = useState<PonPort[]>([]);
 
   // Logic
   const connectedDownstream = allDevices.filter(d => d.uplink_device_id === device.id);
@@ -61,6 +75,42 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
   // Only Network Engineers and NOC can access the CLI (Active Devices Only)
   const canAccessTerminal = !isPassive && (userRole === UserRole.NETWORK || userRole === UserRole.NOC || userRole === UserRole.MANAGER);
 
+  // Initial Data Generation for OLT Ports
+  useEffect(() => {
+      if (isOLT) {
+        const ports: PonPort[] = [];
+        const maxPorts = 8; // Simulate 8 port OLT card
+        
+        const directChildren = allDevices.filter(d => d.uplink_device_id === device.id);
+        
+        for (let i = 1; i <= maxPorts; i++) {
+            const portName = `PON-${i}`;
+            const connected = directChildren.filter(child => {
+                const cust = customers.find(c => c.id === child.customer_id);
+                // Simple heuristic matching for demo
+                return (cust?.olt_port?.includes(portName)) || (child.type === DeviceType.ODP && (i % 2 === 0)); 
+            });
+            
+            // Simulate states
+            const isAdminUp = i !== 6; // Mock port 6 as shutdown
+            const isOperUp = isAdminUp && connected.length > 0;
+    
+            ports.push({
+                id: i,
+                name: portName,
+                adminStatus: isAdminUp ? 'UP' : 'DOWN',
+                operStatus: isOperUp ? 'UP' : 'DOWN',
+                moduleType: 'Class C+',
+                txPower: isAdminUp ? (Math.random() * 2 + 3).toFixed(2) : '0.00', // 3-5 dBm
+                connectedCount: connected.length,
+                children: connected,
+                capacity: 64 // Max per PON
+            });
+        }
+        setLocalPonPorts(ports);
+      }
+  }, [device.id, isOLT, allDevices, customers]);
+
   const handleUpdate = (data: any) => {
       onUpdateDevice(device.id, data);
       setIsEditModalOpen(false);
@@ -71,8 +121,29 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
       setIsTicketModalOpen(false);
   };
 
-  const handlePortAction = (portName: string, action: string) => {
-      alert(`${action} command sent to ${device.name} interface ${portName}.`);
+  const handlePortAction = (portId: number, action: string) => {
+      if (action === 'Shutdown' || action === 'No Shutdown') {
+          setLocalPonPorts(prev => prev.map(p => {
+              if (p.id === portId) {
+                  const newAdminStatus = action === 'Shutdown' ? 'DOWN' : 'UP';
+                  return {
+                      ...p,
+                      adminStatus: newAdminStatus,
+                      // If admin down, oper is down. If admin up, oper depends on connections (simplified)
+                      operStatus: newAdminStatus === 'DOWN' ? 'DOWN' : (p.connectedCount > 0 ? 'UP' : 'DOWN'),
+                      txPower: newAdminStatus === 'DOWN' ? '0.00' : (Math.random() * 2 + 3).toFixed(2)
+                  };
+              }
+              return p;
+          }));
+      } else if (action === 'Reset') {
+          // Simulate reset flash
+          const oldStatus = localPonPorts.find(p => p.id === portId)?.operStatus;
+          setLocalPonPorts(prev => prev.map(p => p.id === portId ? { ...p, operStatus: 'DOWN' } : p));
+          setTimeout(() => {
+              setLocalPonPorts(prev => prev.map(p => p.id === portId ? { ...p, operStatus: oldStatus || 'DOWN' } : p));
+          }, 1000);
+      }
   };
 
   // Upstream Trace
@@ -91,42 +162,6 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
       return path;
   };
   const upstreamPath = getUpstreamPath(device);
-
-  // Helper for OLT PON Viz
-  const getPonPorts = () => {
-    const ports = [];
-    const maxPorts = 8; // Simulate 8 port OLT card
-    
-    // Find all connected ONUs (recursive search ideally, but here direct or via ODP)
-    const directChildren = allDevices.filter(d => d.uplink_device_id === device.id);
-    
-    for (let i = 1; i <= maxPorts; i++) {
-        const portName = `PON-${i}`;
-        const connected = directChildren.filter(child => {
-            const cust = customers.find(c => c.id === child.customer_id);
-            return (cust?.olt_port?.includes(portName)) || (child.type === DeviceType.ODP && (i % 2 === 0)); // Mock distribution
-        });
-        
-        // Simulate states
-        const isAdminUp = i !== 6; // Mock port 6 as shutdown
-        const isOperUp = isAdminUp && connected.length > 0;
-
-        ports.push({
-            id: i,
-            name: portName,
-            adminStatus: isAdminUp ? 'UP' : 'DOWN',
-            operStatus: isOperUp ? 'UP' : 'DOWN',
-            moduleType: 'Class C+',
-            txPower: isAdminUp ? (Math.random() * 2 + 3).toFixed(2) : '0.00', // 3-5 dBm
-            connectedCount: connected.length,
-            children: connected,
-            capacity: 64 // Max per PON
-        });
-    }
-    return ports;
-  };
-
-  const ponPorts = isOLT ? getPonPorts() : [];
 
   // Generate Mock Optical Data
   const generateOpticalData = () => {
@@ -172,8 +207,8 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
   const totalThroughput = ponHistory.length > 0 
       ? (ponHistory[ponHistory.length - 1]['PON-1'] + ponHistory[ponHistory.length - 1]['PON-2'] + ponHistory[ponHistory.length - 1]['PON-3'] + ponHistory[ponHistory.length - 1]['PON-4']) 
       : 0;
-  const totalOnus = ponPorts.reduce((acc, curr) => acc + curr.connectedCount, 0);
-  const activePortsCount = ponPorts.filter(p => p.operStatus === 'UP').length;
+  const totalOnus = localPonPorts.reduce((acc, curr) => acc + curr.connectedCount, 0);
+  const activePortsCount = localPonPorts.filter(p => p.operStatus === 'UP').length;
 
   // --- PING MODAL COMPONENT ---
   const PingModal = () => {
@@ -584,7 +619,7 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
                   </div>
                    <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
                       <p className="text-xs font-bold text-purple-600 uppercase">Active PON Ports</p>
-                      <p className="text-2xl font-bold text-slate-800 mt-1">{activePortsCount} <span className="text-sm font-normal text-slate-500">/ {ponPorts.length}</span></p>
+                      <p className="text-2xl font-bold text-slate-800 mt-1">{activePortsCount} <span className="text-sm font-normal text-slate-500">/ {localPonPorts.length}</span></p>
                   </div>
                    <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
                       <p className="text-xs font-bold text-orange-600 uppercase">Optical Health</p>
@@ -621,7 +656,7 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
                   </h4>
                   
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {ponPorts.map(port => {
+                      {localPonPorts.map(port => {
                           const percent = (port.connectedCount / port.capacity) * 100;
                           const isDisabled = port.adminStatus === 'DOWN';
                           const isAlarm = port.operStatus === 'DOWN' && port.adminStatus === 'UP';
@@ -665,7 +700,7 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
                                   {canEdit && (
                                       <div className="flex gap-2 mt-2 pt-2 border-t border-slate-100 opacity-0 group-hover:opacity-100 transition-opacity">
                                           <button 
-                                            onClick={(e) => { e.stopPropagation(); handlePortAction(port.name, isDisabled ? 'No Shutdown' : 'Shutdown'); }}
+                                            onClick={(e) => { e.stopPropagation(); handlePortAction(port.id, isDisabled ? 'No Shutdown' : 'Shutdown'); }}
                                             className={`flex-1 py-1 text-[10px] font-bold rounded border flex items-center justify-center gap-1 transition ${
                                                 isDisabled 
                                                 ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
@@ -675,7 +710,7 @@ const DeviceDetail: React.FC<DeviceDetailProps> = ({
                                               <Power size={10} /> {isDisabled ? 'Enable' : 'Disable'}
                                           </button>
                                           <button 
-                                            onClick={(e) => { e.stopPropagation(); handlePortAction(port.name, 'Reset'); }}
+                                            onClick={(e) => { e.stopPropagation(); handlePortAction(port.id, 'Reset'); }}
                                             className="px-2 py-1 text-[10px] font-bold rounded border bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
                                             title="Reset Port"
                                           >

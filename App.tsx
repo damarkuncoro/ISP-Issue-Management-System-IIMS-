@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
 import { Ticket, TicketStatus, ActivityLogEntry, Severity, UserRole, Device, DeviceStatus, Customer, CustomerStatus, ServicePlan, Employee, Invoice, InvoiceStatus, Maintenance, MaintenanceStatus, KBArticle, TicketType, EmployeeAuditLogEntry, RadiusSession, RadiusLog, SyslogMessage, EmployeeStatus } from './types';
 import { MOCK_TICKETS, MOCK_DEVICES, MOCK_CUSTOMERS, MOCK_EMPLOYEES, MOCK_INVOICES, MOCK_MAINTENANCE, MOCK_KB, MOCK_SERVICE_PLANS, MOCK_RADIUS_SESSIONS, MOCK_RADIUS_LOGS, MOCK_SYSLOGS } from './constants';
 import Dashboard from './components/Dashboard';
@@ -25,43 +26,19 @@ import GlobalSearch from './components/GlobalSearch';
 import AIAssistant from './components/AIAssistant';
 import { LayoutDashboard, Ticket as TicketIcon, Server, Users, FileText, Settings as SettingsIcon, LogOut, Menu, Bell, Book, Briefcase, Activity, Shield, Terminal } from 'lucide-react';
 
-enum View {
-  DASHBOARD = 'dashboard',
-  TICKETS = 'tickets',
-  TICKET_DETAIL = 'ticket_detail',
-  DEVICES = 'devices',
-  DEVICE_DETAIL = 'device_detail',
-  CUSTOMERS = 'customers',
-  CUSTOMER_DETAIL = 'customer_detail',
-  BILLING = 'billing',
-  MAINTENANCE = 'maintenance',
-  REPORTS = 'reports',
-  SETTINGS = 'settings',
-  KB = 'kb',
-  PLANS = 'plans',
-  EMPLOYEES = 'employees',
-  EMPLOYEE_DETAIL = 'employee_detail',
-  RADIUS = 'radius',
-  SYSLOG = 'syslog'
-}
-
 const App: React.FC = () => {
+  // Router Hooks
+  const navigate = useNavigate();
+  const location = useLocation();
+
   // Auth State
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<UserRole>(UserRole.NOC);
   const [currentUserName, setCurrentUserName] = useState('');
 
-  // Navigation State
-  const [currentView, setCurrentView] = useState<View>(View.DASHBOARD);
+  // UI State
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   
-  // Selection State for Detail Views
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [deviceFilter, setDeviceFilter] = useState('');
-
   // Data State
   const [tickets, setTickets] = useState<Ticket[]>(MOCK_TICKETS);
   const [devices, setDevices] = useState<Device[]>(MOCK_DEVICES);
@@ -93,11 +70,12 @@ const App: React.FC = () => {
     setCurrentUserName(username);
     setIsLoggedIn(true);
     addNotification('success', 'Welcome Back', `Logged in as ${username} (${role})`);
+    navigate('/');
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
-    setCurrentView(View.DASHBOARD);
+    navigate('/login');
     setNotification(null);
   };
 
@@ -191,7 +169,6 @@ const App: React.FC = () => {
           if (oldPlan !== newPlan) {
               const session = radiusSessions.find(s => s.customer_id === id);
               if (session) {
-                  // In a real app, this would send an API call to the Radius server
                   setTimeout(() => {
                       addNotification('info', 'Radius CoA Triggered', `Speed limit update sent to NAS for user ${oldCustomer.pppoe_username || 'unknown'} (Plan: ${newPlan}).`);
                   }, 1000);
@@ -274,7 +251,6 @@ const App: React.FC = () => {
   const handleUpdateEmployee = (id: string, data: any) => {
       setEmployees(prev => prev.map(e => {
           if (e.id === id) {
-              // Simple audit log
               const changedField = Object.keys(data).find(k => data[k] !== (e as any)[k]) || 'details';
               const log: EmployeeAuditLogEntry = {
                   id: `audit-${Date.now()}`,
@@ -313,59 +289,148 @@ const App: React.FC = () => {
       addNotification('success', 'Settings Saved', 'System configuration updated.');
   };
 
-  // --- Navigation Helpers ---
-  const navigateToTicket = (ticket: Ticket) => {
-      setSelectedTicket(ticket);
-      setCurrentView(View.TICKET_DETAIL);
-  };
-
+  // --- Navigation Helpers (Using Router) ---
+  const navigateToTicket = (ticket: Ticket) => navigate(`/tickets/${ticket.id}`);
   const navigateToDevice = (deviceId: string) => {
-      const device = devices.find(d => d.id === deviceId || d.ip_address === deviceId || d.name === deviceId);
+      // Check if ID is a valid device ID or simple search string
+      const device = devices.find(d => d.id === deviceId);
       if (device) {
-          setSelectedDevice(device);
-          setCurrentView(View.DEVICE_DETAIL);
+          navigate(`/devices/${device.id}`);
       } else {
-          // If not found, maybe switch to inventory with filter
-          setDeviceFilter(deviceId);
-          setCurrentView(View.DEVICES);
+          // If searching, go to inventory with query param (mocked via state passing for now)
+          navigate('/devices', { state: { filter: deviceId } });
       }
   };
-
   const navigateToCustomer = (customerOrId: string | Customer) => {
-      if (typeof customerOrId === 'string') {
-          const cust = customers.find(c => c.id === customerOrId);
-          if (cust) {
-              setSelectedCustomer(cust);
-              setCurrentView(View.CUSTOMER_DETAIL);
-          }
-      } else {
-          setSelectedCustomer(customerOrId);
-          setCurrentView(View.CUSTOMER_DETAIL);
-      }
+      const id = typeof customerOrId === 'string' ? customerOrId : customerOrId.id;
+      navigate(`/customers/${id}`);
+  };
+  const navigateToEmployee = (employee: Employee) => navigate(`/employees/${employee.id}`);
+
+  // --- Route Wrappers for Detail Views ---
+  
+  const TicketDetailRoute = () => {
+    const { id } = useParams();
+    const ticket = tickets.find(t => t.id === id);
+    if (!ticket) return <Navigate to="/tickets" />;
+    return (
+        <TicketDetail 
+            ticket={ticket} 
+            employees={employees}
+            devices={devices}
+            tickets={tickets}
+            kbArticles={kbArticles}
+            onBack={() => navigate('/tickets')}
+            onUpdateStatus={handleUpdateTicketStatus}
+            onUpdateTicket={handleUpdateTicket}
+            onNavigateToDevice={navigateToDevice}
+            onNavigateToCustomer={navigateToCustomer}
+            onNavigateToInvoice={() => navigate('/billing')}
+            onNavigateToMaintenance={() => navigate('/maintenance')}
+        />
+    );
   };
 
-  const navigateToEmployee = (employee: Employee) => {
-      setSelectedEmployee(employee);
-      setCurrentView(View.EMPLOYEE_DETAIL);
+  const CustomerDetailRoute = () => {
+    const { id } = useParams();
+    const customer = customers.find(c => c.id === id);
+    if (!customer) return <Navigate to="/customers" />;
+    return (
+        <CustomerDetail 
+            customer={customer}
+            userRole={currentUserRole}
+            servicePlans={servicePlans}
+            invoices={invoices}
+            devices={devices}
+            tickets={tickets}
+            onBack={() => navigate('/customers')}
+            onUpdateCustomer={handleUpdateCustomer}
+            onCreateTicket={handleCreateTicket}
+            onAddDevice={handleAddDevice}
+            onTerminateCustomer={handleTerminateCustomer}
+            onKickSession={handleKickSession}
+        />
+    );
   };
 
-  if (!isLoggedIn) {
-    return <LoginScreen onLogin={handleLogin} />;
-  }
+  const DeviceDetailRoute = () => {
+    const { id } = useParams();
+    const device = devices.find(d => d.id === id);
+    if (!device) return <Navigate to="/devices" />;
+    return (
+        <DeviceDetail 
+            device={device}
+            allDevices={devices}
+            tickets={tickets}
+            customers={customers}
+            invoices={invoices}
+            maintenance={maintenance}
+            userRole={currentUserRole}
+            onBack={() => navigate('/devices')}
+            onUpdateDevice={handleUpdateDevice}
+            onNavigateToTicket={navigateToTicket}
+            onNavigateToDevice={navigateToDevice}
+            onCreateTicket={handleCreateTicket}
+        />
+    );
+  };
 
-  // --- Sidebar Menu ---
-  const MenuItem = ({ view, label, icon, roles }: { view: View, label: string, icon: React.ReactNode, roles?: UserRole[] }) => {
+  const EmployeeDetailRoute = () => {
+    const { id } = useParams();
+    const employee = employees.find(e => e.id === id);
+    if (!employee) return <Navigate to="/employees" />;
+    return (
+        <EmployeeDetail 
+            employee={employee}
+            userRole={currentUserRole}
+            onBack={() => navigate('/employees')}
+            onUpdateEmployee={handleUpdateEmployee}
+        />
+    );
+  };
+
+  const DeviceInventoryRoute = () => {
+      // Handle passing filter state via navigation
+      const { state } = useLocation();
+      const filter = state && (state as any).filter ? (state as any).filter : '';
+      
+      return (
+        <DeviceInventory
+            devices={devices}
+            userRole={currentUserRole}
+            customers={customers} 
+            onAddDevice={handleAddDevice}
+            onUpdateDevice={handleUpdateDevice}
+            onValidateDevice={handleValidateDevice}
+            onSelectDevice={(d) => navigateToDevice(d.id)}
+            preSetFilter={filter}
+            tickets={tickets}
+            radiusSessions={radiusSessions}
+            onNavigateToCustomer={navigateToCustomer}
+            onKickSession={handleKickSession}
+        />
+      );
+  };
+
+  // --- Sidebar Menu Item ---
+  const MenuItem = ({ path, label, icon, roles }: { path: string, label: string, icon: React.ReactNode, roles?: UserRole[] }) => {
       if (roles && !roles.includes(currentUserRole) && currentUserRole !== UserRole.MANAGER) return null;
+      const isActive = location.pathname === path || (path !== '/' && location.pathname.startsWith(path));
+      
       return (
         <button 
-            onClick={() => { setCurrentView(view); if (window.innerWidth < 1024) setIsSidebarOpen(false); }}
-            className={`flex items-center gap-3 w-full p-3 rounded-lg transition-colors ${currentView === view ? 'bg-blue-600 text-white shadow-md' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+            onClick={() => { navigate(path); if (window.innerWidth < 1024) setIsSidebarOpen(false); }}
+            className={`flex items-center gap-3 w-full p-3 rounded-lg transition-colors ${isActive ? 'bg-blue-600 text-white shadow-md' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
         >
             {icon}
             <span className="font-medium">{label}</span>
         </button>
       );
   };
+
+  if (!isLoggedIn) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
 
   return (
     <div className="flex h-screen bg-slate-100 overflow-hidden font-sans">
@@ -379,7 +444,7 @@ const App: React.FC = () => {
             onClear={() => setNotifications([])}
         />
         
-        {/* AI Assistant - Floating */}
+        {/* AI Assistant */}
         <AIAssistant tickets={tickets} customers={customers} devices={devices} />
 
         {/* Sidebar */}
@@ -393,23 +458,23 @@ const App: React.FC = () => {
             
             <nav className="flex-1 overflow-y-auto p-4 space-y-1">
                 <p className="text-xs font-bold text-slate-500 uppercase px-3 mb-2 mt-2">Operations</p>
-                <MenuItem view={View.DASHBOARD} label="Dashboard" icon={<LayoutDashboard size={20} />} />
-                <MenuItem view={View.TICKETS} label="Helpdesk & Tickets" icon={<TicketIcon size={20} />} />
-                <MenuItem view={View.CUSTOMERS} label="Customers" icon={<Users size={20} />} />
+                <MenuItem path="/" label="Dashboard" icon={<LayoutDashboard size={20} />} />
+                <MenuItem path="/tickets" label="Helpdesk & Tickets" icon={<TicketIcon size={20} />} />
+                <MenuItem path="/customers" label="Customers" icon={<Users size={20} />} />
                 
                 <p className="text-xs font-bold text-slate-500 uppercase px-3 mb-2 mt-6">Network & Assets</p>
-                <MenuItem view={View.DEVICES} label="Inventory & Map" icon={<Server size={20} />} />
-                <MenuItem view={View.MAINTENANCE} label="Maintenance" icon={<SettingsIcon size={20} />} />
-                <MenuItem view={View.RADIUS} label="AAA / Radius" icon={<Shield size={20} />} roles={[UserRole.NOC, UserRole.NETWORK]} />
-                <MenuItem view={View.SYSLOG} label="Syslogs" icon={<Terminal size={20} />} roles={[UserRole.NOC, UserRole.NETWORK]} />
+                <MenuItem path="/devices" label="Inventory & Map" icon={<Server size={20} />} />
+                <MenuItem path="/maintenance" label="Maintenance" icon={<SettingsIcon size={20} />} />
+                <MenuItem path="/radius" label="AAA / Radius" icon={<Shield size={20} />} roles={[UserRole.NOC, UserRole.NETWORK]} />
+                <MenuItem path="/syslog" label="Syslogs" icon={<Terminal size={20} />} roles={[UserRole.NOC, UserRole.NETWORK]} />
 
                 <p className="text-xs font-bold text-slate-500 uppercase px-3 mb-2 mt-6">Admin & Billing</p>
-                <MenuItem view={View.BILLING} label="Billing" icon={<FileText size={20} />} roles={[UserRole.FINANCE, UserRole.MANAGER, UserRole.SALES]} />
-                <MenuItem view={View.EMPLOYEES} label="Staff (HRIS)" icon={<Briefcase size={20} />} roles={[UserRole.HRD, UserRole.MANAGER]} />
-                <MenuItem view={View.REPORTS} label="Reports" icon={<FileText size={20} />} />
-                <MenuItem view={View.KB} label="Knowledge Base" icon={<Book size={20} />} />
-                <MenuItem view={View.PLANS} label="Service Plans" icon={<Activity size={20} />} roles={[UserRole.PRODUCT_MANAGER, UserRole.MANAGER]} />
-                <MenuItem view={View.SETTINGS} label="Settings" icon={<SettingsIcon size={20} />} roles={[UserRole.MANAGER]} />
+                <MenuItem path="/billing" label="Billing" icon={<FileText size={20} />} roles={[UserRole.FINANCE, UserRole.MANAGER, UserRole.SALES]} />
+                <MenuItem path="/employees" label="Staff (HRIS)" icon={<Briefcase size={20} />} roles={[UserRole.HRD, UserRole.MANAGER]} />
+                <MenuItem path="/reports" label="Reports" icon={<FileText size={20} />} />
+                <MenuItem path="/kb" label="Knowledge Base" icon={<Book size={20} />} />
+                <MenuItem path="/plans" label="Service Plans" icon={<Activity size={20} />} roles={[UserRole.PRODUCT_MANAGER, UserRole.MANAGER]} />
+                <MenuItem path="/settings" label="Settings" icon={<SettingsIcon size={20} />} roles={[UserRole.MANAGER]} />
             </nav>
 
             <div className="p-4 border-t border-slate-800">
@@ -439,7 +504,6 @@ const App: React.FC = () => {
                     <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="text-slate-500 hover:text-slate-800">
                         <Menu size={24} />
                     </button>
-                    {/* Global Search Component */}
                     <GlobalSearch 
                         tickets={tickets} 
                         customers={customers} 
@@ -460,203 +524,127 @@ const App: React.FC = () => {
                 </div>
             </header>
 
-            {/* View Area */}
+            {/* View Area - Router Switch */}
             <div className="flex-1 overflow-y-auto p-6 scroll-smooth">
-              {currentView === View.DASHBOARD && (
-                <Dashboard 
-                    tickets={tickets} 
-                    customers={customers} 
-                    devices={devices} 
-                    invoices={invoices}
-                    servicePlans={servicePlans}
-                    maintenance={maintenance}
-                    userRole={currentUserRole}
-                    onCreateTicket={handleCreateTicket}
-                    onNavigateToTicket={navigateToTicket}
-                    onViewAllTickets={() => setCurrentView(View.TICKETS)}
-                    onNavigateToCustomer={navigateToCustomer}
-                    onValidateDevice={(d) => { navigateToDevice(d.id); }} // Usually goes to detail to validate
-                    onAddCustomer={() => { setCurrentView(View.CUSTOMERS); /* trigger add modal if needed via prop/state, but simple nav for now */ }}
-                />
-              )}
-              
-              {currentView === View.TICKETS && (
-                <TicketList 
-                    tickets={tickets} 
-                    onSelectTicket={navigateToTicket} 
-                    onCreateTicket={handleCreateTicket}
-                    invoices={invoices}
-                    maintenance={maintenance}
-                />
-              )}
+                <Routes>
+                    <Route path="/" element={
+                        <Dashboard 
+                            tickets={tickets} 
+                            customers={customers} 
+                            devices={devices} 
+                            invoices={invoices}
+                            servicePlans={servicePlans}
+                            maintenance={maintenance}
+                            userRole={currentUserRole}
+                            onCreateTicket={handleCreateTicket}
+                            onNavigateToTicket={navigateToTicket}
+                            onViewAllTickets={() => navigate('/tickets')}
+                            onNavigateToCustomer={navigateToCustomer}
+                            onValidateDevice={(d) => navigateToDevice(d.id)}
+                            onAddCustomer={() => navigate('/customers')}
+                        />
+                    } />
+                    
+                    <Route path="/tickets" element={
+                        <TicketList 
+                            tickets={tickets} 
+                            onSelectTicket={navigateToTicket} 
+                            onCreateTicket={handleCreateTicket}
+                            invoices={invoices}
+                            maintenance={maintenance}
+                        />
+                    } />
+                    <Route path="/tickets/:id" element={<TicketDetailRoute />} />
 
-              {currentView === View.TICKET_DETAIL && selectedTicket && (
-                <TicketDetail 
-                    ticket={selectedTicket} 
-                    employees={employees}
-                    devices={devices}
-                    tickets={tickets}
-                    kbArticles={kbArticles}
-                    onBack={() => setCurrentView(View.TICKETS)}
-                    onUpdateStatus={handleUpdateTicketStatus}
-                    onUpdateTicket={handleUpdateTicket}
-                    onNavigateToDevice={navigateToDevice}
-                    onNavigateToCustomer={navigateToCustomer}
-                    onNavigateToInvoice={(invId) => { setCurrentView(View.BILLING); /* Could add filter state here */ }}
-                    onNavigateToMaintenance={(mtId) => { setCurrentView(View.MAINTENANCE); /* Could add filter state */ }}
-                />
-              )}
+                    <Route path="/customers" element={
+                        <CustomerManagement 
+                            customers={customers}
+                            userRole={currentUserRole}
+                            servicePlans={servicePlans}
+                            onAddCustomer={handleAddCustomer}
+                            onVerifyCustomer={handleVerifyCustomer}
+                            onProvisionCustomer={handleProvisionCustomer}
+                            onSelectCustomer={navigateToCustomer}
+                        />
+                    } />
+                    <Route path="/customers/:id" element={<CustomerDetailRoute />} />
 
-              {currentView === View.DEVICES && (
-                <DeviceInventory
-                    devices={devices}
-                    userRole={currentUserRole}
-                    customers={customers} 
-                    onAddDevice={handleAddDevice}
-                    onUpdateDevice={handleUpdateDevice}
-                    onValidateDevice={handleValidateDevice}
-                    onSelectDevice={(d) => { setSelectedDevice(d); setCurrentView(View.DEVICE_DETAIL); }}
-                    preSetFilter={deviceFilter}
-                    tickets={tickets}
-                    radiusSessions={radiusSessions} // Pass active sessions for IPAM
-                    onNavigateToCustomer={navigateToCustomer}
-                    onKickSession={handleKickSession}
-                />
-              )}
+                    <Route path="/devices" element={<DeviceInventoryRoute />} />
+                    <Route path="/devices/:id" element={<DeviceDetailRoute />} />
 
-              {currentView === View.DEVICE_DETAIL && selectedDevice && (
-                  <DeviceDetail 
-                      device={selectedDevice}
-                      allDevices={devices}
-                      tickets={tickets}
-                      customers={customers}
-                      invoices={invoices}
-                      maintenance={maintenance}
-                      userRole={currentUserRole}
-                      onBack={() => setCurrentView(View.DEVICES)}
-                      onUpdateDevice={handleUpdateDevice}
-                      onNavigateToTicket={navigateToTicket}
-                      onNavigateToDevice={navigateToDevice}
-                      onCreateTicket={handleCreateTicket}
-                  />
-              )}
+                    <Route path="/maintenance" element={
+                        <MaintenanceSchedule 
+                            maintenanceList={maintenance}
+                            userRole={currentUserRole}
+                            onAddMaintenance={handleAddMaintenance}
+                            onUpdateStatus={handleUpdateMaintenanceStatus}
+                            onNavigateToDevice={navigateToDevice}
+                        />
+                    } />
 
-              {currentView === View.CUSTOMERS && (
-                <CustomerManagement 
-                    customers={customers}
-                    userRole={currentUserRole}
-                    servicePlans={servicePlans}
-                    onAddCustomer={handleAddCustomer}
-                    onVerifyCustomer={handleVerifyCustomer}
-                    onProvisionCustomer={handleProvisionCustomer}
-                    onSelectCustomer={navigateToCustomer}
-                />
-              )}
+                    <Route path="/radius" element={
+                        <RadiusManagement 
+                            sessions={radiusSessions}
+                            logs={radiusLogs}
+                            customers={customers}
+                            userRole={currentUserRole}
+                            onKickSession={handleKickSession}
+                            onNavigateToCustomer={navigateToCustomer}
+                        />
+                    } />
 
-              {currentView === View.CUSTOMER_DETAIL && selectedCustomer && (
-                  <CustomerDetail 
-                      customer={selectedCustomer}
-                      userRole={currentUserRole}
-                      servicePlans={servicePlans}
-                      invoices={invoices}
-                      devices={devices}
-                      tickets={tickets}
-                      onBack={() => setCurrentView(View.CUSTOMERS)}
-                      onUpdateCustomer={handleUpdateCustomer}
-                      onCreateTicket={handleCreateTicket}
-                      onAddDevice={handleAddDevice}
-                      onTerminateCustomer={handleTerminateCustomer}
-                      onKickSession={handleKickSession}
-                  />
-              )}
+                    <Route path="/syslog" element={
+                        <SyslogViewer initialLogs={syslogs} />
+                    } />
 
-              {currentView === View.BILLING && (
-                  <BillingList 
-                      invoices={invoices}
-                      customers={customers}
-                      userRole={currentUserRole}
-                      onUpdateStatus={handleUpdateInvoiceStatus}
-                      onCreateInvoice={handleCreateInvoice}
-                  />
-              )}
+                    <Route path="/billing" element={
+                        <BillingList 
+                            invoices={invoices}
+                            customers={customers}
+                            userRole={currentUserRole}
+                            onUpdateStatus={handleUpdateInvoiceStatus}
+                            onCreateInvoice={handleCreateInvoice}
+                        />
+                    } />
 
-              {currentView === View.MAINTENANCE && (
-                  <MaintenanceSchedule 
-                      maintenanceList={maintenance}
-                      userRole={currentUserRole}
-                      onAddMaintenance={handleAddMaintenance}
-                      onUpdateStatus={handleUpdateMaintenanceStatus}
-                      onNavigateToDevice={navigateToDevice}
-                  />
-              )}
+                    <Route path="/employees" element={
+                        <EmployeeManagement 
+                            employees={employees}
+                            userRole={currentUserRole}
+                            onAddEmployee={handleAddEmployee}
+                            onUpdateEmployee={handleUpdateEmployee}
+                            onSelectEmployee={navigateToEmployee}
+                        />
+                    } />
+                    <Route path="/employees/:id" element={<EmployeeDetailRoute />} />
 
-              {currentView === View.REPORTS && (
-                  <Reports 
-                      tickets={tickets}
-                      customers={customers}
-                      invoices={invoices}
-                  />
-              )}
+                    <Route path="/reports" element={
+                        <Reports 
+                            tickets={tickets}
+                            customers={customers}
+                            invoices={invoices}
+                        />
+                    } />
 
-              {currentView === View.SETTINGS && (
-                  <Settings onSave={handleSaveSettings} />
-              )}
+                    <Route path="/kb" element={
+                        <KnowledgeBase articles={kbArticles} />
+                    } />
 
-              {currentView === View.KB && (
-                  <KnowledgeBase articles={kbArticles} />
-              )}
+                    <Route path="/plans" element={
+                        <ServicePlanManager 
+                            plans={servicePlans} 
+                            userRole={currentUserRole} 
+                            onAddPlan={handleAddPlan}
+                        />
+                    } />
 
-              {currentView === View.PLANS && (
-                  <ServicePlanManager 
-                      plans={servicePlans} 
-                      userRole={currentUserRole} 
-                      onAddPlan={handleAddPlan}
-                  />
-              )}
+                    <Route path="/settings" element={
+                        <Settings onSave={handleSaveSettings} />
+                    } />
 
-              {currentView === View.EMPLOYEES && (
-                  <EmployeeManagement 
-                      employees={employees}
-                      userRole={currentUserRole}
-                      onAddEmployee={handleAddEmployee}
-                      onUpdateEmployee={handleUpdateEmployee}
-                      onSelectEmployee={navigateToEmployee}
-                  />
-              )}
-
-              {currentView === View.EMPLOYEES && (
-                  <EmployeeManagement 
-                      employees={employees}
-                      userRole={currentUserRole}
-                      onAddEmployee={handleAddEmployee}
-                      onUpdateEmployee={handleUpdateEmployee}
-                      onSelectEmployee={navigateToEmployee}
-                  />
-              )}
-
-              {currentView === View.EMPLOYEE_DETAIL && selectedEmployee && (
-                  <EmployeeDetail 
-                      employee={selectedEmployee}
-                      userRole={currentUserRole}
-                      onBack={() => setCurrentView(View.EMPLOYEES)}
-                      onUpdateEmployee={handleUpdateEmployee}
-                  />
-              )}
-
-              {currentView === View.RADIUS && (
-                  <RadiusManagement 
-                      sessions={radiusSessions}
-                      logs={radiusLogs}
-                      customers={customers}
-                      userRole={currentUserRole}
-                      onKickSession={handleKickSession}
-                      onNavigateToCustomer={navigateToCustomer}
-                  />
-              )}
-
-              {currentView === View.SYSLOG && (
-                  <SyslogViewer initialLogs={syslogs} />
-              )}
+                    {/* Fallback */}
+                    <Route path="*" element={<Navigate to="/" />} />
+                </Routes>
             </div>
         </main>
     </div>
